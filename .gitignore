@@ -1,0 +1,59 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Go workspace file
+go.work
+
+# Dependency directories
+vendor/
+
+# IDE specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Log files
+*.log
+logs/
+
+# Build outputs
+/bin/
+/dist/
+/build/
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+*.backup
+*.backup[0-9]
+nul
+
+# Temporary PowerShell scripts (fix scripts)
+fix_*.ps1
+add_*.ps1
+update_*.ps1
+simple_*.ps1
+
+# Keep useful scripts in scripts/ directory
+!scripts/*.ps1
