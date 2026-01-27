@@ -136,17 +136,6 @@
 - **THEN** 用户下次登录时看不到该菜单
 - **AND** 直接访问该菜单路由返回403 Forbidden
 
-## REMOVED Requirements
-
-### Requirement: 三层审批管理菜单
-
-**Reason**: 简单的三层审批（我发起的/待我审批/已审批）功能不够灵活，无法满足复杂的审批流程需求。改为采用审批流程管理模式。
-
-**Migration**:
-1. 删除3个旧菜单：`approval-initiated`、`approval-pending`、`approval-completed`
-2. 新增3个审批流程管理菜单：`approval_flow_type`、`approval_flow_template`、`approval_flow_management`
-3. 数据库中的审批相关数据需要根据新的审批流程模式重新设计
-
 ## ADDED Requirements
 
 ### Requirement: 菜单ID编号规则
