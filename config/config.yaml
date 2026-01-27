@@ -6,7 +6,7 @@ database:
   host: "localhost"
   port: 3306
   user: "root"
-  password: ""  # 从环境变量 DB_PASSWORD 读取
+  password: "qweasd123Q!"
   database: "charonoms"
   charset: "utf8mb4"
   max_idle_conns: 10

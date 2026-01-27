@@ -50,9 +50,10 @@ func (s *AuthService) Login(ctx context.Context, req *LoginRequest) (*LoginRespo
 		return nil, err
 	}
 
-	// 验证密码（注意：这里假设原系统使用明文密码，生产环境应使用 bcrypt）
-	// 如果使用 bcrypt: err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
-	if user.Password != req.Password {
+	// 验证密码（使用 bcrypt）
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
+	if err != nil {
+		// 密码错误
 		return nil, errors.ErrInvalidCredentials
 	}
 
@@ -124,7 +125,13 @@ func (s *AuthService) SyncRole(ctx context.Context, userID uint, oldRoleID uint,
 }
 
 // HashPassword 密码加密（工具方法）
+// 使用 bcrypt 算法加密密码，cost = 10
 func HashPassword(password string) (string, error) {
-	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 10)
 	return string(bytes), err
+}
+
+// VerifyPassword 验证密码（工具方法）
+func VerifyPassword(hashedPassword, password string) error {
+	return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
 }

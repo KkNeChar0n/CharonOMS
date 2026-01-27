@@ -1,16 +1,20 @@
 package router
 
 import (
+	accountService "charonoms/internal/application/service/account"
 	authService "charonoms/internal/application/service/auth"
 	basicService "charonoms/internal/application/service/basic"
 	rbacService "charonoms/internal/application/service/rbac"
 	"charonoms/internal/infrastructure/config"
 	"charonoms/internal/infrastructure/persistence"
+	accountImpl "charonoms/internal/infrastructure/persistence/mysql/account"
 	authImpl "charonoms/internal/infrastructure/persistence/mysql/auth"
 	rbacImpl "charonoms/internal/infrastructure/persistence/mysql/rbac"
 	"charonoms/internal/infrastructure/persistence/mysql"
+	"charonoms/internal/interfaces/http/handler/account"
 	"charonoms/internal/interfaces/http/handler/auth"
 	"charonoms/internal/interfaces/http/handler/basic"
+	"charonoms/internal/interfaces/http/handler/placeholder"
 	"charonoms/internal/interfaces/http/handler/rbac"
 	"charonoms/internal/interfaces/http/middleware"
 
@@ -58,6 +62,14 @@ func setupDependencies(r *gin.Engine, cfg *config.Config) {
 	basicSvc := basicService.NewBasicService(basicRepo)
 	basicHdl := basic.NewBasicHandler(basicSvc)
 
+	// Account module
+	accountRepo := accountImpl.NewAccountRepository(mysql.DB)
+	accountSvc := accountService.NewAccountService(accountRepo)
+	accountHdl := account.NewAccountHandler(accountSvc)
+
+	// Placeholder handler for unimplemented features
+	placeholderHdl := placeholder.NewPlaceholderHandler()
+
 	// API routes
 	api := r.Group("/api")
 	{
@@ -96,8 +108,8 @@ func setupDependencies(r *gin.Engine, cfg *config.Config) {
 				permissions.GET("/tree", rbacHdl.GetPermissionTree)
 			}
 
-			// Menu management
-			menus := authorized.Group("/menu-management")
+			// Menu management (updated route: menu-management -> menu_management)
+			menus := authorized.Group("/menu_management")
 			{
 				menus.GET("", rbacHdl.GetMenus)
 				menus.PUT("/:id", rbacHdl.UpdateMenu)
@@ -109,19 +121,50 @@ func setupDependencies(r *gin.Engine, cfg *config.Config) {
 			authorized.GET("/grades/active", basicHdl.GetActiveGrades)
 			authorized.GET("/subjects/active", basicHdl.GetActiveSubjects)
 
-			// TODO: Add other business module routes here
-			// Student management
-			// students := authorized.Group("/students")
-			// students.Use(middleware.Permission("student"))
-			// {
-			//     students.GET("", studentHdl.List)
-			//     students.POST("", studentHdl.Create)
-			//     students.GET("/:id", studentHdl.Get)
-			//     students.PUT("/:id", studentHdl.Update)
-			//     students.DELETE("/:id", studentHdl.Delete)
-			// }
+			// Account management
+			accounts := authorized.Group("/accounts")
+			{
+				accounts.GET("", accountHdl.GetAccounts)
+				accounts.POST("", accountHdl.CreateAccount)
+				accounts.PUT("/:id", accountHdl.UpdateAccount)
+				accounts.PUT("/:id/status", accountHdl.UpdateAccountStatus)
+			}
 
-			// ... other business module routes
+			// Student Management - Placeholder routes
+			authorized.GET("/students", placeholderHdl.HandlePlaceholder)
+
+			// Coach Management - Placeholder routes
+			authorized.GET("/coaches", placeholderHdl.HandlePlaceholder)
+
+			// Order Management - Placeholder routes
+			authorized.GET("/orders", placeholderHdl.HandlePlaceholder)
+			authorized.GET("/childorders", placeholderHdl.HandlePlaceholder)
+			authorized.GET("/refund_orders", placeholderHdl.HandlePlaceholder)
+			authorized.GET("/refund_childorders", placeholderHdl.HandlePlaceholder)
+
+			// Goods Management - Placeholder routes
+			authorized.GET("/brands", placeholderHdl.HandlePlaceholder)
+			authorized.GET("/attributes", placeholderHdl.HandlePlaceholder)
+			authorized.GET("/classifies", placeholderHdl.HandlePlaceholder)
+			authorized.GET("/goods", placeholderHdl.HandlePlaceholder)
+
+			// Approval Flow Management - Placeholder routes
+			authorized.GET("/approval_flow_type", placeholderHdl.HandlePlaceholder)
+			authorized.GET("/approval_flow_template", placeholderHdl.HandlePlaceholder)
+			authorized.GET("/approval_flow_management", placeholderHdl.HandlePlaceholder)
+
+			// Marketing Management - Placeholder routes
+			authorized.GET("/activity_template", placeholderHdl.HandlePlaceholder)
+			authorized.GET("/activity_management", placeholderHdl.HandlePlaceholder)
+
+			// Contract Management - Placeholder routes
+			authorized.GET("/contract_management", placeholderHdl.HandlePlaceholder)
+
+			// Finance Management - Placeholder routes
+			authorized.GET("/payment_collection", placeholderHdl.HandlePlaceholder)
+			authorized.GET("/separate_account", placeholderHdl.HandlePlaceholder)
+			authorized.GET("/refund_management", placeholderHdl.HandlePlaceholder)
+			authorized.GET("/refund_payment_detail", placeholderHdl.HandlePlaceholder)
 		}
 	}
 }

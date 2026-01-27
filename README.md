@@ -89,6 +89,20 @@ database:
 go mod download
 ```
 
+### 密码迁移（从旧系统迁移）
+
+⚠️ **重要**: 如果是从旧的Python Flask系统迁移，需要先将明文密码转换为bcrypt加密。
+
+```bash
+# Windows
+scripts\migrate_passwords.bat
+
+# Linux/Mac
+go run scripts/migrate_passwords.go
+```
+
+详细说明请查看：[scripts/PASSWORD_MIGRATION_README.md](scripts/PASSWORD_MIGRATION_README.md)
+
 ### 运行项目
 
 ```bash

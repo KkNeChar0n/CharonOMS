@@ -17,53 +17,59 @@ INSERT INTO `useraccount` (`id`, `username`, `password`, `name`, `phone`, `role_
 (3, 'operator', 'password', '操作员', '13800000003', 3, 0)
 ON DUPLICATE KEY UPDATE password=VALUES(password), role_id=VALUES(role_id);
 
--- Insert menus (parent_id = NULL for top-level menus)
+-- Insert menus (aligned with original Python Flask project)
 INSERT INTO `menu` (`id`, `name`, `route`, `parent_id`, `sort_order`, `status`) VALUES
 -- Level 1 menus (parent_id = NULL)
-(1, '系统管理', '', NULL, 1, 0),
-(2, '学生管理', '', NULL, 2, 0),
-(3, '教练管理', '', NULL, 3, 0),
-(4, '商品管理', '', NULL, 4, 0),
-(5, '订单管理', '', NULL, 5, 0),
-(6, '活动管理', '', NULL, 6, 0),
-(7, '财务管理', '', NULL, 7, 0),
-(8, '审批管理', '', NULL, 8, 0),
+(1, '系统管理', '', NULL, 99, 0),
+(2, '学生管理', '', NULL, 1, 0),
+(3, '教练管理', '', NULL, 2, 0),
+(4, '订单管理', '', NULL, 3, 0),
+(5, '商品管理', '', NULL, 4, 0),
+(6, '审批管理', '', NULL, 5, 0),
+(7, '活动管理', '', NULL, 6, 0),
+(8, '财务管理', '', NULL, 8, 0),
 
--- Level 2 menus - System Management
-(11, '账号管理', 'accounts', 1, 1, 0),
-(12, '角色管理', 'roles', 1, 2, 0),
-(13, '权限管理', 'permissions', 1, 3, 0),
-(14, '菜单管理', 'menu-management', 1, 4, 0),
+-- Level 2 menus - System Management (parent_id=1)
+(1, '用户管理', 'accounts', 1, 1, 0),
+(4, '角色管理', 'roles', 1, 2, 0),
+(13, '菜单管理', 'menu_management', 1, 3, 0),
+(14, '权限管理', 'permissions', 1, 4, 0),
 
--- Level 2 menus - Student Management
-(21, '学生列表', 'students', 2, 1, 0),
+-- Level 2 menus - Student Management (parent_id=2)
+(2, '学生管理', 'students', 2, 1, 0),
 
--- Level 2 menus - Coach Management
-(31, '教练列表', 'coaches', 3, 1, 0),
+-- Level 2 menus - Coach Management (parent_id=3)
+(6, '教练管理', 'coaches', 3, 1, 0),
 
--- Level 2 menus - Product Management
-(41, '品牌管理', 'brands', 4, 1, 0),
-(42, '分类管理', 'classifies', 4, 2, 0),
-(43, '属性管理', 'attributes', 4, 3, 0),
-(44, '商品列表', 'goods', 4, 4, 0),
+-- Level 2 menus - Order Management (parent_id=4)
+(3, '订单管理', 'orders', 4, 1, 0),
+(7, '学员订单', 'student_orders', 4, 2, 0),
+(29, '退款订单', 'refund_orders', 4, 3, 0),
 
--- Level 2 menus - Order Management
-(51, '订单列表', 'orders', 5, 1, 0),
-(52, '子订单', 'childorders', 5, 2, 0),
+-- Level 2 menus - Goods Management (parent_id=5)
+(15, '商品类别', 'goods_category', 5, 1, 0),
+(16, '商品管理', 'goods_management', 5, 2, 0),
+(17, '套餐管理', 'package_management', 5, 3, 0),
+(18, '课程管理', 'course_management', 5, 4, 0),
+(19, '班级管理', 'class_management', 5, 5, 0),
 
--- Level 2 menus - Activity Management
-(61, '活动模板', 'activity-templates', 6, 1, 0),
-(62, '活动列表', 'activities', 6, 2, 0),
+-- Level 2 menus - Approval Management (parent_id=6)
+(30, '审批流类型', 'approval_flow_type', 6, 1, 0),
+(31, '审批流模板', 'approval_flow_template', 6, 2, 0),
+(32, '审批流管理', 'approval_flow_management', 6, 3, 0),
 
--- Level 2 menus - Finance Management
-(71, '合同管理', 'contracts', 7, 1, 0),
-(72, '收款管理', 'payment-collections', 7, 2, 0),
-(73, '退款管理', 'refund-orders', 7, 3, 0),
+-- Level 2 menus - Activity Management (parent_id=7)
+(21, '活动模板', 'activity_template', 7, 1, 0),
+(22, '活动管理', 'activity_management', 7, 2, 0),
+(23, '优惠券管理', 'coupon_management', 7, 3, 0),
 
--- Level 2 menus - Approval Management
-(81, '我发起的', 'approval-initiated', 8, 1, 0),
-(82, '待我审批', 'approval-pending', 8, 2, 0),
-(83, '已审批', 'approval-completed', 8, 3, 0)
+-- Level 2 menus - Finance Management (parent_id=8)
+(24, '合同管理', 'contract_management', 8, 1, 0),
+(25, '收款管理', 'payment_collection', 8, 2, 0),
+(26, '退款子订单', 'refund_childorders', 8, 3, 0),
+(27, '退款管理', 'refund_management', 8, 4, 0),
+(28, '退款支付详情', 'refund_payment_detail', 8, 5, 0),
+(39, '分账明细', 'separate_account', 8, 6, 0)
 ON DUPLICATE KEY UPDATE name=VALUES(name), route=VALUES(route), parent_id=VALUES(parent_id), sort_order=VALUES(sort_order), status=VALUES(status);
 
 -- Insert permissions
