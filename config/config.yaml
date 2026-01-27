@@ -1,0 +1,44 @@
+server:
+  port: "5001"
+  mode: "debug"  # debug, release, test
+
+database:
+  host: "localhost"
+  port: 3306
+  user: "root"
+  password: "qweasd123Q!"
+  database: "charonoms"
+  charset: "utf8mb4"
+  max_idle_conns: 10
+  max_open_conns: 100
+  conn_max_lifetime: 3600  # seconds
+
+jwt:
+  secret: "your-secret-key-change-this-in-production"
+  expire_hours: 24
+  issuer: "CharonOMS"
+
+logger:
+  level: "info"  # debug, info, warn, error
+  output: "stdout"  # stdout, file
+  file_path: "logs/app.log"
+  max_size: 100  # MB
+  max_backups: 5
+  max_age: 30  # days
+  compress: true
+
+cors:
+  allow_origins:
+    - "http://localhost"
+    - "http://127.0.0.1"
+  allow_methods:
+    - "GET"
+    - "POST"
+    - "PUT"
+    - "DELETE"
+    - "OPTIONS"
+  allow_headers:
+    - "Origin"
+    - "Content-Type"
+    - "Authorization"
+  allow_credentials: true
