@@ -5,17 +5,20 @@ import (
 	authService "charonoms/internal/application/service/auth"
 	basicService "charonoms/internal/application/service/basic"
 	rbacService "charonoms/internal/application/service/rbac"
+	studentService "charonoms/internal/application/service/student"
 	"charonoms/internal/infrastructure/config"
 	"charonoms/internal/infrastructure/persistence"
 	accountImpl "charonoms/internal/infrastructure/persistence/mysql/account"
 	authImpl "charonoms/internal/infrastructure/persistence/mysql/auth"
 	rbacImpl "charonoms/internal/infrastructure/persistence/mysql/rbac"
+	studentImpl "charonoms/internal/infrastructure/persistence/mysql/student"
 	"charonoms/internal/infrastructure/persistence/mysql"
 	"charonoms/internal/interfaces/http/handler/account"
 	"charonoms/internal/interfaces/http/handler/auth"
 	"charonoms/internal/interfaces/http/handler/basic"
 	"charonoms/internal/interfaces/http/handler/placeholder"
 	"charonoms/internal/interfaces/http/handler/rbac"
+	"charonoms/internal/interfaces/http/handler/student"
 	"charonoms/internal/interfaces/http/middleware"
 
 	"github.com/gin-gonic/gin"
@@ -66,6 +69,11 @@ func setupDependencies(r *gin.Engine, cfg *config.Config) {
 	accountRepo := accountImpl.NewAccountRepository(mysql.DB)
 	accountSvc := accountService.NewAccountService(accountRepo)
 	accountHdl := account.NewAccountHandler(accountSvc)
+
+	// Student module
+	studentRepo := studentImpl.NewStudentRepository(mysql.DB)
+	studentSvc := studentService.NewStudentService(studentRepo)
+	studentHdl := student.NewStudentHandler(studentSvc)
 
 	// Placeholder handler for unimplemented features
 	placeholderHdl := placeholder.NewPlaceholderHandler()
@@ -130,11 +138,23 @@ func setupDependencies(r *gin.Engine, cfg *config.Config) {
 				accounts.PUT("/:id/status", accountHdl.UpdateAccountStatus)
 			}
 
-			// Student Management - Placeholder routes
-			authorized.GET("/students", placeholderHdl.HandlePlaceholder)
+			// Student Management
+			students := authorized.Group("/students")
+			{
+				students.GET("/active", studentHdl.GetActiveStudents) // Must be before /:id
+				students.GET("", studentHdl.GetStudents)
+				students.POST("", studentHdl.CreateStudent)
+				students.PUT("/:id", studentHdl.UpdateStudent)
+				students.PUT("/:id/status", studentHdl.UpdateStudentStatus)
+				students.DELETE("/:id", studentHdl.DeleteStudent)
+			}
 
 			// Coach Management - Placeholder routes
 			authorized.GET("/coaches", placeholderHdl.HandlePlaceholder)
+			// 临时返回空数组，避免前端报错
+			authorized.GET("/coaches/active", func(c *gin.Context) {
+				c.JSON(200, gin.H{"coaches": []interface{}{}})
+			})
 
 			// Order Management - Placeholder routes
 			authorized.GET("/orders", placeholderHdl.HandlePlaceholder)
