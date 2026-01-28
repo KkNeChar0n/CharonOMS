@@ -2,6 +2,8 @@ package contract
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 
 	"charonoms/internal/domain/contract/repository"
 )
@@ -15,6 +17,36 @@ type ContractService struct {
 func NewContractService(contractRepo repository.ContractRepository) *ContractService {
 	return &ContractService{
 		contractRepo: contractRepo,
+	}
+}
+
+// toInt 将 interface{} 转换为 int（支持字符串和数字）
+func toInt(v interface{}) (int, bool) {
+	switch val := v.(type) {
+	case float64:
+		return int(val), true
+	case string:
+		i, err := strconv.Atoi(strings.TrimSpace(val))
+		return i, err == nil
+	case int:
+		return val, true
+	default:
+		return 0, false
+	}
+}
+
+// toFloat64 将 interface{} 转换为 float64（支持字符串和数字）
+func toFloat64(v interface{}) (float64, bool) {
+	switch val := v.(type) {
+	case float64:
+		return val, true
+	case string:
+		f, err := strconv.ParseFloat(strings.TrimSpace(val), 64)
+		return f, err == nil
+	case int:
+		return float64(val), true
+	default:
+		return 0, false
 	}
 }
 
@@ -39,39 +71,48 @@ func (s *ContractService) GetContractByID(id int) (map[string]interface{}, error
 
 // CreateContract 创建合同
 func (s *ContractService) CreateContract(req *CreateContractRequest, initiator string) (int, error) {
-	// 验证必填字段
-	if req.Name == "" {
+	// 转换并验证必填字段
+	name := req.Name
+	if name == "" {
 		return 0, fmt.Errorf("请填写所有必填项")
 	}
-	if req.StudentID == 0 {
+
+	studentID, ok := toInt(req.StudentID)
+	if !ok || studentID == 0 {
 		return 0, fmt.Errorf("请填写所有必填项")
 	}
-	if req.Type == nil {
+
+	contractType, ok := toInt(req.Type)
+	if !ok {
 		return 0, fmt.Errorf("请填写所有必填项")
 	}
-	if req.SignatureForm == nil {
+
+	signatureForm, ok := toInt(req.SignatureForm)
+	if !ok {
 		return 0, fmt.Errorf("请填写所有必填项")
 	}
-	if req.ContractAmount == 0 {
+
+	contractAmount, ok := toFloat64(req.ContractAmount)
+	if !ok || contractAmount == 0 {
 		return 0, fmt.Errorf("请填写所有必填项")
 	}
 
 	// 验证合同类型
-	if *req.Type != 0 && *req.Type != 1 {
+	if contractType != 0 && contractType != 1 {
 		return 0, fmt.Errorf("合同类型必须为0（首报）或1（续报）")
 	}
 
 	// 验证签署形式
-	if *req.SignatureForm != 0 && *req.SignatureForm != 1 {
+	if signatureForm != 0 && signatureForm != 1 {
 		return 0, fmt.Errorf("签署形式必须为0（线上签署）或1（线下签署）")
 	}
 
 	contractID, err := s.contractRepo.CreateContract(
-		req.Name,
-		req.StudentID,
-		*req.Type,
-		*req.SignatureForm,
-		req.ContractAmount,
+		name,
+		studentID,
+		contractType,
+		signatureForm,
+		contractAmount,
 		req.Signatory,
 		initiator,
 	)
