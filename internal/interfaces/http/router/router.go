@@ -5,6 +5,7 @@ import (
 	authService "charonoms/internal/application/service/auth"
 	basicService "charonoms/internal/application/service/basic"
 	coachService "charonoms/internal/application/service/coach"
+	contractService "charonoms/internal/application/service/contract"
 	rbacService "charonoms/internal/application/service/rbac"
 	studentService "charonoms/internal/application/service/student"
 	"charonoms/internal/infrastructure/config"
@@ -12,6 +13,7 @@ import (
 	accountImpl "charonoms/internal/infrastructure/persistence/mysql/account"
 	authImpl "charonoms/internal/infrastructure/persistence/mysql/auth"
 	coachImpl "charonoms/internal/infrastructure/persistence/mysql/coach"
+	contractImpl "charonoms/internal/infrastructure/persistence/mysql/contract"
 	rbacImpl "charonoms/internal/infrastructure/persistence/mysql/rbac"
 	studentImpl "charonoms/internal/infrastructure/persistence/mysql/student"
 	"charonoms/internal/infrastructure/persistence/mysql"
@@ -19,6 +21,7 @@ import (
 	"charonoms/internal/interfaces/http/handler/auth"
 	"charonoms/internal/interfaces/http/handler/basic"
 	"charonoms/internal/interfaces/http/handler/coach"
+	"charonoms/internal/interfaces/http/handler/contract"
 	"charonoms/internal/interfaces/http/handler/placeholder"
 	"charonoms/internal/interfaces/http/handler/rbac"
 	"charonoms/internal/interfaces/http/handler/student"
@@ -82,6 +85,11 @@ func setupDependencies(r *gin.Engine, cfg *config.Config) {
 	coachRepo := coachImpl.NewCoachRepository(mysql.DB)
 	coachSvc := coachService.NewCoachService(coachRepo)
 	coachHdl := coach.NewCoachHandler(coachSvc)
+
+	// Contract module
+	contractRepo := contractImpl.NewContractRepository(mysql.DB)
+	contractSvc := contractService.NewContractService(contractRepo)
+	contractHdl := contract.NewContractHandler(contractSvc)
 
 	// Placeholder handler for unimplemented features
 	placeholderHdl := placeholder.NewPlaceholderHandler()
@@ -189,7 +197,17 @@ func setupDependencies(r *gin.Engine, cfg *config.Config) {
 			authorized.GET("/activity_template", placeholderHdl.HandlePlaceholder)
 			authorized.GET("/activity_management", placeholderHdl.HandlePlaceholder)
 
-			// Contract Management - Placeholder routes
+			// Contract Management
+			contracts := authorized.Group("/contracts")
+			{
+				contracts.GET("", contractHdl.GetContracts)
+				contracts.POST("", contractHdl.CreateContract)
+				contracts.PUT("/:id/revoke", contractHdl.RevokeContract)
+				contracts.PUT("/:id/terminate", contractHdl.TerminateContract)
+				contracts.GET("/:id", contractHdl.GetContractByID)
+			}
+
+			// Contract Management - menu placeholder
 			authorized.GET("/contract_management", placeholderHdl.HandlePlaceholder)
 
 			// Finance Management - Placeholder routes
