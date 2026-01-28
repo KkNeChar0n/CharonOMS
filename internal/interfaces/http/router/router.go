@@ -2,26 +2,38 @@ package router
 
 import (
 	accountService "charonoms/internal/application/service/account"
+	attributeService "charonoms/internal/application/service/attribute"
 	authService "charonoms/internal/application/service/auth"
 	basicService "charonoms/internal/application/service/basic"
+	brandService "charonoms/internal/application/service/brand"
+	classifyService "charonoms/internal/application/service/classify"
 	coachService "charonoms/internal/application/service/coach"
 	contractService "charonoms/internal/application/service/contract"
+	goodsService "charonoms/internal/application/service/goods"
 	rbacService "charonoms/internal/application/service/rbac"
 	studentService "charonoms/internal/application/service/student"
 	"charonoms/internal/infrastructure/config"
 	"charonoms/internal/infrastructure/persistence"
 	accountImpl "charonoms/internal/infrastructure/persistence/mysql/account"
+	attributeImpl "charonoms/internal/infrastructure/persistence/mysql/attribute"
 	authImpl "charonoms/internal/infrastructure/persistence/mysql/auth"
+	brandImpl "charonoms/internal/infrastructure/persistence/mysql/brand"
+	classifyImpl "charonoms/internal/infrastructure/persistence/mysql/classify"
 	coachImpl "charonoms/internal/infrastructure/persistence/mysql/coach"
 	contractImpl "charonoms/internal/infrastructure/persistence/mysql/contract"
+	goodsImpl "charonoms/internal/infrastructure/persistence/mysql/goods"
 	rbacImpl "charonoms/internal/infrastructure/persistence/mysql/rbac"
 	studentImpl "charonoms/internal/infrastructure/persistence/mysql/student"
 	"charonoms/internal/infrastructure/persistence/mysql"
 	"charonoms/internal/interfaces/http/handler/account"
+	"charonoms/internal/interfaces/http/handler/attribute"
 	"charonoms/internal/interfaces/http/handler/auth"
 	"charonoms/internal/interfaces/http/handler/basic"
+	"charonoms/internal/interfaces/http/handler/brand"
+	"charonoms/internal/interfaces/http/handler/classify"
 	"charonoms/internal/interfaces/http/handler/coach"
 	"charonoms/internal/interfaces/http/handler/contract"
+	"charonoms/internal/interfaces/http/handler/goods"
 	"charonoms/internal/interfaces/http/handler/placeholder"
 	"charonoms/internal/interfaces/http/handler/rbac"
 	"charonoms/internal/interfaces/http/handler/student"
@@ -90,6 +102,26 @@ func setupDependencies(r *gin.Engine, cfg *config.Config) {
 	contractRepo := contractImpl.NewContractRepository(mysql.DB)
 	contractSvc := contractService.NewContractService(contractRepo)
 	contractHdl := contract.NewContractHandler(contractSvc)
+
+	// Brand module
+	brandRepo := brandImpl.NewBrandRepository(mysql.DB)
+	brandSvc := brandService.NewBrandService(brandRepo)
+	brandHdl := brand.NewBrandHandler(brandSvc)
+
+	// Classify module
+	classifyRepo := classifyImpl.NewClassifyRepository(mysql.DB)
+	classifySvc := classifyService.NewClassifyService(classifyRepo)
+	classifyHdl := classify.NewClassifyHandler(classifySvc)
+
+	// Attribute module
+	attributeRepo := attributeImpl.NewAttributeRepository(mysql.DB)
+	attributeSvc := attributeService.NewAttributeService(attributeRepo)
+	attributeHdl := attribute.NewAttributeHandler(attributeSvc)
+
+	// Goods module
+	goodsRepo := goodsImpl.NewGoodsRepository(mysql.DB)
+	goodsSvc := goodsService.NewGoodsService(goodsRepo)
+	goodsHdl := goods.NewGoodsHandler(goodsSvc)
 
 	// Placeholder handler for unimplemented features
 	placeholderHdl := placeholder.NewPlaceholderHandler()
@@ -182,11 +214,52 @@ func setupDependencies(r *gin.Engine, cfg *config.Config) {
 			authorized.GET("/refund_orders", placeholderHdl.HandlePlaceholder)
 			authorized.GET("/refund_childorders", placeholderHdl.HandlePlaceholder)
 
-			// Goods Management - Placeholder routes
-			authorized.GET("/brands", placeholderHdl.HandlePlaceholder)
-			authorized.GET("/attributes", placeholderHdl.HandlePlaceholder)
-			authorized.GET("/classifies", placeholderHdl.HandlePlaceholder)
-			authorized.GET("/goods", placeholderHdl.HandlePlaceholder)
+			// Brand Management
+			brands := authorized.Group("/brands")
+			{
+				brands.GET("", brandHdl.GetBrands)
+				brands.GET("/active", brandHdl.GetActiveBrands)
+				brands.POST("", brandHdl.CreateBrand)
+				brands.PUT("/:id", brandHdl.UpdateBrand)
+				brands.PUT("/:id/status", brandHdl.UpdateBrandStatus)
+			}
+
+			// Classify Management
+			classifies := authorized.Group("/classifies")
+			{
+				classifies.GET("", classifyHdl.GetClassifies)
+				classifies.GET("/parents", classifyHdl.GetParents)
+				classifies.GET("/active", classifyHdl.GetActiveClassifies)
+				classifies.POST("", classifyHdl.CreateClassify)
+				classifies.PUT("/:id", classifyHdl.UpdateClassify)
+				classifies.PUT("/:id/status", classifyHdl.UpdateClassifyStatus)
+			}
+
+			// Attribute Management
+			attributes := authorized.Group("/attributes")
+			{
+				attributes.GET("", attributeHdl.GetAttributes)
+				attributes.GET("/active", attributeHdl.GetActiveAttributes)
+				attributes.POST("", attributeHdl.CreateAttribute)
+				attributes.PUT("/:id", attributeHdl.UpdateAttribute)
+				attributes.PUT("/:id/status", attributeHdl.UpdateAttributeStatus)
+				attributes.GET("/:id/values", attributeHdl.GetAttributeValues)
+				attributes.POST("/:id/values", attributeHdl.SaveAttributeValues)
+			}
+
+			// Goods Management (静态路径必须在参数路径之前)
+			goods := authorized.Group("/goods")
+			{
+				goods.GET("", goodsHdl.GetGoods)
+				goods.GET("/active-for-order", goodsHdl.GetActiveForOrder)
+				goods.GET("/available-for-combo", goodsHdl.GetAvailableForCombo)
+				goods.POST("", goodsHdl.CreateGoods)
+				goods.GET("/:id", goodsHdl.GetGoodsByID)
+				goods.GET("/:id/included-goods", goodsHdl.GetIncludedGoods)
+				goods.GET("/:id/total-price", goodsHdl.GetTotalPrice)
+				goods.PUT("/:id", goodsHdl.UpdateGoods)
+				goods.PUT("/:id/status", goodsHdl.UpdateStatus)
+			}
 
 			// Approval Flow Management - Placeholder routes
 			authorized.GET("/approval_flow_type", placeholderHdl.HandlePlaceholder)
