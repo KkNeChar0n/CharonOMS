@@ -10,6 +10,7 @@ import (
 	coachService "charonoms/internal/application/service/coach"
 	contractService "charonoms/internal/application/service/contract"
 	goodsService "charonoms/internal/application/service/goods"
+	marketingService "charonoms/internal/application/service/marketing"
 	rbacService "charonoms/internal/application/service/rbac"
 	studentService "charonoms/internal/application/service/student"
 	"charonoms/internal/infrastructure/config"
@@ -22,6 +23,7 @@ import (
 	coachImpl "charonoms/internal/infrastructure/persistence/mysql/coach"
 	contractImpl "charonoms/internal/infrastructure/persistence/mysql/contract"
 	goodsImpl "charonoms/internal/infrastructure/persistence/mysql/goods"
+	marketingImpl "charonoms/internal/infrastructure/persistence/mysql/marketing"
 	rbacImpl "charonoms/internal/infrastructure/persistence/mysql/rbac"
 	studentImpl "charonoms/internal/infrastructure/persistence/mysql/student"
 	"charonoms/internal/infrastructure/persistence/mysql"
@@ -34,6 +36,7 @@ import (
 	"charonoms/internal/interfaces/http/handler/coach"
 	"charonoms/internal/interfaces/http/handler/contract"
 	"charonoms/internal/interfaces/http/handler/goods"
+	"charonoms/internal/interfaces/http/handler/marketing"
 	"charonoms/internal/interfaces/http/handler/placeholder"
 	"charonoms/internal/interfaces/http/handler/rbac"
 	"charonoms/internal/interfaces/http/handler/student"
@@ -122,6 +125,14 @@ func setupDependencies(r *gin.Engine, cfg *config.Config) {
 	goodsRepo := goodsImpl.NewGoodsRepository(mysql.DB)
 	goodsSvc := goodsService.NewGoodsService(goodsRepo)
 	goodsHdl := goods.NewGoodsHandler(goodsSvc)
+
+	// Marketing module
+	templateRepo := marketingImpl.NewTemplateRepository(mysql.DB)
+	activityRepo := marketingImpl.NewActivityRepository(mysql.DB)
+	templateSvc := marketingService.NewTemplateService(templateRepo)
+	activitySvc := marketingService.NewActivityService(activityRepo, templateRepo)
+	templateHdl := marketing.NewTemplateHandler(templateSvc)
+	activityHdl := marketing.NewActivityHandler(activitySvc)
 
 	// Placeholder handler for unimplemented features
 	placeholderHdl := placeholder.NewPlaceholderHandler()
@@ -275,7 +286,28 @@ func setupDependencies(r *gin.Engine, cfg *config.Config) {
 			authorized.GET("/approval_flow_template", placeholderHdl.HandlePlaceholder)
 			authorized.GET("/approval_flow_management", placeholderHdl.HandlePlaceholder)
 
-			// Marketing Management - Placeholder routes
+			// Marketing Management - Activity Template
+			activityTemplates := authorized.Group("/activity-templates")
+			{
+				activityTemplates.GET("/active", templateHdl.GetActiveTemplates) // Must be before /:id
+				activityTemplates.GET("", templateHdl.GetTemplates)
+				activityTemplates.GET("/:id", templateHdl.GetTemplateDetail)
+				activityTemplates.POST("", templateHdl.CreateTemplate)
+				activityTemplates.PUT("/:id", templateHdl.UpdateTemplate)
+				activityTemplates.PUT("/:id/status", templateHdl.UpdateTemplateStatus)
+			}
+
+			// Marketing Management - Activity
+			activities := authorized.Group("/activities")
+			{
+				activities.GET("", activityHdl.GetActivities)
+				activities.GET("/:id", activityHdl.GetActivityDetail)
+				activities.POST("", activityHdl.CreateActivity)
+				activities.PUT("/:id", activityHdl.UpdateActivity)
+				activities.PUT("/:id/status", activityHdl.UpdateActivityStatus)
+			}
+
+			// Marketing Management - Menu placeholder routes
 			authorized.GET("/activity_template", placeholderHdl.HandlePlaceholder)
 			authorized.GET("/activity_management", placeholderHdl.HandlePlaceholder)
 
