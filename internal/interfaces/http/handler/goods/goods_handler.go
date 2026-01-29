@@ -41,7 +41,19 @@ func (h *GoodsHandler) GetGoods(c *gin.Context) {
 		if err == nil {
 			filtered := make([]map[string]interface{}, 0)
 			for _, g := range goods {
-				if cid, ok := g["classify_id"].(int); ok && cid == classifyID {
+				// 处理不同的整数类型
+				var cid int
+				switch v := g["classifyid"].(type) {
+				case int:
+					cid = v
+				case int64:
+					cid = int(v)
+				case float64:
+					cid = int(v)
+				default:
+					continue
+				}
+				if cid == classifyID {
 					filtered = append(filtered, g)
 				}
 			}
@@ -55,7 +67,19 @@ func (h *GoodsHandler) GetGoods(c *gin.Context) {
 		if err == nil {
 			filtered := make([]map[string]interface{}, 0)
 			for _, g := range goods {
-				if s, ok := g["status"].(int); ok && s == status {
+				// 处理不同的整数类型
+				var s int
+				switch v := g["status"].(type) {
+				case int:
+					s = v
+				case int64:
+					s = int(v)
+				case float64:
+					s = int(v)
+				default:
+					continue
+				}
+				if s == status {
 					filtered = append(filtered, g)
 				}
 			}
