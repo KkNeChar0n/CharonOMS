@@ -35,7 +35,7 @@ func (h *TemplateHandler) GetTemplates(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"activity_templates": templates})
+	c.JSON(http.StatusOK, gin.H{"templates": templates})
 }
 
 // GetActiveTemplates 获取启用的活动模板列表
@@ -46,7 +46,7 @@ func (h *TemplateHandler) GetActiveTemplates(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"activity_templates": templates})
+	c.JSON(http.StatusOK, gin.H{"templates": templates})
 }
 
 // GetTemplateDetail 获取活动模板详情
@@ -63,7 +63,7 @@ func (h *TemplateHandler) GetTemplateDetail(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, template)
+	c.JSON(http.StatusOK, gin.H{"template": template})
 }
 
 // CreateTemplate 创建活动模板

@@ -22,13 +22,45 @@ func NewGoodsHandler(goodsService *goodsService.GoodsService) *GoodsHandler {
 	}
 }
 
-// GetGoods 获取商品列表
-// GET /api/goods
+// GetGoods 获取商品列表（支持按分类和状态筛选）
+// GET /api/goods?classifyid=1&status=0
 func (h *GoodsHandler) GetGoods(c *gin.Context) {
+	// 获取查询参数
+	classifyIDStr := c.Query("classifyid")
+	statusStr := c.Query("status")
+
 	goods, err := h.goodsService.GetGoodsList()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
+	}
+
+	// 按分类ID筛选
+	if classifyIDStr != "" {
+		classifyID, err := strconv.Atoi(classifyIDStr)
+		if err == nil {
+			filtered := make([]map[string]interface{}, 0)
+			for _, g := range goods {
+				if cid, ok := g["classify_id"].(int); ok && cid == classifyID {
+					filtered = append(filtered, g)
+				}
+			}
+			goods = filtered
+		}
+	}
+
+	// 按状态筛选
+	if statusStr != "" {
+		status, err := strconv.Atoi(statusStr)
+		if err == nil {
+			filtered := make([]map[string]interface{}, 0)
+			for _, g := range goods {
+				if s, ok := g["status"].(int); ok && s == status {
+					filtered = append(filtered, g)
+				}
+			}
+			goods = filtered
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{"goods": goods})

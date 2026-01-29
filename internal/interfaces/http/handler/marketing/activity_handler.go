@@ -52,7 +52,7 @@ func (h *ActivityHandler) GetActivityDetail(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, activity)
+	c.JSON(http.StatusOK, gin.H{"activity": activity})
 }
 
 // CreateActivity 创建活动
