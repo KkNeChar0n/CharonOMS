@@ -46,6 +46,10 @@ func (h *GoodsHandler) GetGoods(c *gin.Context) {
 				switch v := g["classifyid"].(type) {
 				case int:
 					cid = v
+				case int8:
+					cid = int(v)
+				case uint8:
+					cid = int(v)
 				case int32:
 					cid = int(v)
 				case int64:
@@ -69,11 +73,15 @@ func (h *GoodsHandler) GetGoods(c *gin.Context) {
 		if err == nil {
 			filtered := make([]map[string]interface{}, 0)
 			for _, g := range goods {
-				// 处理不同的整数类型
+				// 处理不同的整数类型（MySQL tinyint -> Go int8/uint8）
 				var s int
 				switch v := g["status"].(type) {
 				case int:
 					s = v
+				case int8:
+					s = int(v)
+				case uint8:
+					s = int(v)
 				case int32:
 					s = int(v)
 				case int64:
