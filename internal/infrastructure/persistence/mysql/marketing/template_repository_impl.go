@@ -60,38 +60,40 @@ func (r *templateRepositoryImpl) GetByID(ctx context.Context, id uint) (*entity.
 
 	// 根据 select_type 动态加载关联
 	if template.SelectType == 1 {
-		// 按分类：预加载分类关联，并获取分类名称
-		var classifies []*entity.ActivityTemplateClassify
+		// 按分类：查询关联的分类
+		var classifyList []map[string]interface{}
 		err = r.db.WithContext(ctx).
-			Table("activity_template_classify").
-			Select("activity_template_classify.id, activity_template_classify.template_id, activity_template_classify.classify_id, classify.name as classify_name").
-			Joins("LEFT JOIN classify ON classify.id = activity_template_classify.classify_id").
-			Where("activity_template_classify.template_id = ?", id).
-			Scan(&classifies).Error
+			Table("activity_template_goods atg").
+			Select("atg.classify_id, c.name as classify_name").
+			Joins("JOIN classify c ON atg.classify_id = c.id").
+			Where("atg.template_id = ?", id).
+			Scan(&classifyList).Error
 		if err != nil {
 			return nil, err
 		}
-		template.Classifies = classifies
+		template.ClassifyList = classifyList
 	} else if template.SelectType == 2 {
-		// 按商品：预加载商品关联，并获取商品名称
-		var goods []*entity.ActivityTemplateGoods
+		// 按商品：查询关联的商品
+		var goodsList []map[string]interface{}
 		err = r.db.WithContext(ctx).
-			Table("activity_template_goods").
-			Select("activity_template_goods.id, activity_template_goods.template_id, activity_template_goods.goods_id, goods.name as goods_name").
-			Joins("LEFT JOIN goods ON goods.id = activity_template_goods.goods_id").
-			Where("activity_template_goods.template_id = ?", id).
-			Scan(&goods).Error
+			Table("activity_template_goods atg").
+			Select("atg.goods_id, g.name as goods_name, g.price, b.name as brand_name, c.name as classify_name").
+			Joins("JOIN goods g ON atg.goods_id = g.id").
+			Joins("LEFT JOIN brand b ON g.brandid = b.id").
+			Joins("LEFT JOIN classify c ON g.classifyid = c.id").
+			Where("atg.template_id = ?", id).
+			Scan(&goodsList).Error
 		if err != nil {
 			return nil, err
 		}
-		template.Goods = goods
+		template.GoodsList = goodsList
 	}
 
 	return &template, nil
 }
 
 // Create 创建活动模板（包含关联）
-func (r *templateRepositoryImpl) Create(ctx context.Context, template *entity.ActivityTemplate) error {
+func (r *templateRepositoryImpl) Create(ctx context.Context, template *entity.ActivityTemplate, classifyIDs []uint, goodsIDs []uint) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// 创建模板
 		if err := tx.Create(template).Error; err != nil {
@@ -99,21 +101,27 @@ func (r *templateRepositoryImpl) Create(ctx context.Context, template *entity.Ac
 		}
 
 		// 根据 select_type 创建关联
-		if template.SelectType == 1 && len(template.Classifies) > 0 {
-			// 按分类：创建分类关联
-			for _, classify := range template.Classifies {
-				classify.TemplateID = template.ID
+		if template.SelectType == 1 && len(classifyIDs) > 0 {
+			// 按分类：在 activity_template_goods 表中插入 classify_id
+			for _, classifyID := range classifyIDs {
+				relation := &entity.ActivityTemplateGoods{
+					TemplateID: template.ID,
+					ClassifyID: &classifyID,
+				}
+				if err := tx.Create(relation).Error; err != nil {
+					return err
+				}
 			}
-			if err := tx.Create(&template.Classifies).Error; err != nil {
-				return err
-			}
-		} else if template.SelectType == 2 && len(template.Goods) > 0 {
-			// 按商品：创建商品关联
-			for _, goods := range template.Goods {
-				goods.TemplateID = template.ID
-			}
-			if err := tx.Create(&template.Goods).Error; err != nil {
-				return err
+		} else if template.SelectType == 2 && len(goodsIDs) > 0 {
+			// 按商品：在 activity_template_goods 表中插入 goods_id
+			for _, goodsID := range goodsIDs {
+				relation := &entity.ActivityTemplateGoods{
+					TemplateID: template.ID,
+					GoodsID:    &goodsID,
+				}
+				if err := tx.Create(relation).Error; err != nil {
+					return err
+				}
 			}
 		}
 
@@ -122,7 +130,7 @@ func (r *templateRepositoryImpl) Create(ctx context.Context, template *entity.Ac
 }
 
 // Update 更新活动模板（包含关联）
-func (r *templateRepositoryImpl) Update(ctx context.Context, template *entity.ActivityTemplate) error {
+func (r *templateRepositoryImpl) Update(ctx context.Context, template *entity.ActivityTemplate, classifyIDs []uint, goodsIDs []uint) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// 更新模板基本信息
 		if err := tx.Model(&entity.ActivityTemplate{}).Where("id = ?", template.ID).Updates(map[string]interface{}{
@@ -134,29 +142,30 @@ func (r *templateRepositoryImpl) Update(ctx context.Context, template *entity.Ac
 		}
 
 		// 删除旧关联
-		if template.SelectType == 1 {
-			if err := tx.Where("template_id = ?", template.ID).Delete(&entity.ActivityTemplateClassify{}).Error; err != nil {
-				return err
-			}
-			// 创建新的分类关联
-			if len(template.Classifies) > 0 {
-				for _, classify := range template.Classifies {
-					classify.TemplateID = template.ID
+		if err := tx.Where("template_id = ?", template.ID).Delete(&entity.ActivityTemplateGoods{}).Error; err != nil {
+			return err
+		}
+
+		// 根据 select_type 创建新关联
+		if template.SelectType == 1 && len(classifyIDs) > 0 {
+			// 按分类：在 activity_template_goods 表中插入 classify_id
+			for _, classifyID := range classifyIDs {
+				relation := &entity.ActivityTemplateGoods{
+					TemplateID: template.ID,
+					ClassifyID: &classifyID,
 				}
-				if err := tx.Create(&template.Classifies).Error; err != nil {
+				if err := tx.Create(relation).Error; err != nil {
 					return err
 				}
 			}
-		} else if template.SelectType == 2 {
-			if err := tx.Where("template_id = ?", template.ID).Delete(&entity.ActivityTemplateGoods{}).Error; err != nil {
-				return err
-			}
-			// 创建新的商品关联
-			if len(template.Goods) > 0 {
-				for _, goods := range template.Goods {
-					goods.TemplateID = template.ID
+		} else if template.SelectType == 2 && len(goodsIDs) > 0 {
+			// 按商品：在 activity_template_goods 表中插入 goods_id
+			for _, goodsID := range goodsIDs {
+				relation := &entity.ActivityTemplateGoods{
+					TemplateID: template.ID,
+					GoodsID:    &goodsID,
 				}
-				if err := tx.Create(&template.Goods).Error; err != nil {
+				if err := tx.Create(relation).Error; err != nil {
 					return err
 				}
 			}

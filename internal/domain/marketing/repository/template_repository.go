@@ -18,10 +18,10 @@ type TemplateRepository interface {
 	GetByID(ctx context.Context, id uint) (*entity.ActivityTemplate, error)
 
 	// Create 创建活动模板（包含关联）
-	Create(ctx context.Context, template *entity.ActivityTemplate) error
+	Create(ctx context.Context, template *entity.ActivityTemplate, classifyIDs []uint, goodsIDs []uint) error
 
 	// Update 更新活动模板（包含关联）
-	Update(ctx context.Context, template *entity.ActivityTemplate) error
+	Update(ctx context.Context, template *entity.ActivityTemplate, classifyIDs []uint, goodsIDs []uint) error
 
 	// UpdateStatus 更新活动模板状态
 	UpdateStatus(ctx context.Context, id uint, status int) error

@@ -97,22 +97,7 @@ func (s *TemplateService) CreateTemplate(ctx context.Context, req *CreateTemplat
 		UpdateTime: time.Now(),
 	}
 
-	// 构建关联
-	if req.SelectType == 1 {
-		for _, classifyID := range req.ClassifyIDs {
-			template.Classifies = append(template.Classifies, &entity.ActivityTemplateClassify{
-				ClassifyID: classifyID,
-			})
-		}
-	} else if req.SelectType == 2 {
-		for _, goodsID := range req.GoodsIDs {
-			template.Goods = append(template.Goods, &entity.ActivityTemplateGoods{
-				GoodsID: goodsID,
-			})
-		}
-	}
-
-	return s.templateRepo.Create(ctx, template)
+	return s.templateRepo.Create(ctx, template, req.ClassifyIDs, req.GoodsIDs)
 }
 
 // UpdateTemplate 更新活动模板
@@ -152,26 +137,7 @@ func (s *TemplateService) UpdateTemplate(ctx context.Context, id uint, req *Upda
 	template.SelectType = req.SelectType
 	template.UpdateTime = time.Now()
 
-	// 清空旧关联
-	template.Classifies = nil
-	template.Goods = nil
-
-	// 构建新关联
-	if req.SelectType == 1 {
-		for _, classifyID := range req.ClassifyIDs {
-			template.Classifies = append(template.Classifies, &entity.ActivityTemplateClassify{
-				ClassifyID: classifyID,
-			})
-		}
-	} else if req.SelectType == 2 {
-		for _, goodsID := range req.GoodsIDs {
-			template.Goods = append(template.Goods, &entity.ActivityTemplateGoods{
-				GoodsID: goodsID,
-			})
-		}
-	}
-
-	return s.templateRepo.Update(ctx, template)
+	return s.templateRepo.Update(ctx, template, req.ClassifyIDs, req.GoodsIDs)
 }
 
 // UpdateTemplateStatus 更新活动模板状态
