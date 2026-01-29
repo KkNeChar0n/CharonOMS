@@ -6,11 +6,11 @@ import "time"
 type Role struct {
 	ID           uint      `gorm:"primaryKey" json:"id"`
 	Name         string    `gorm:"size:50;not null" json:"name"`
-	Description  string    `gorm:"size:255" json:"description"`
-	IsSuperAdmin int8      `gorm:"default:0" json:"is_super_admin"` // 0-否 1-是
-	Status       int8      `gorm:"default:0" json:"status"`          // 0-正常 1-禁用
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	Description  string    `gorm:"column:comment;size:255" json:"comment"` // 前端使用comment字段名
+	IsSuperAdmin int8      `gorm:"default:0" json:"is_super_admin"`         // 0-否 1-是
+	Status       int8      `gorm:"default:0" json:"status"`                 // 0-正常 1-禁用
+	CreatedAt    time.Time `gorm:"column:create_time" json:"create_time"`
+	UpdatedAt    time.Time `gorm:"column:update_time" json:"update_time"`
 
 	// 关联
 	Permissions []Permission `gorm:"many2many:role_permissions;foreignKey:ID;joinForeignKey:role_id;References:ID;joinReferences:permissions_id" json:"permissions,omitempty"`
@@ -28,6 +28,7 @@ type Permission struct {
 	ActionID string `gorm:"size:100;uniqueIndex" json:"action_id"` // 如: view_student, add_student
 	MenuID   uint   `gorm:"default:0" json:"menu_id"`
 	Status   int8   `gorm:"default:0" json:"status"` // 0-启用 1-禁用
+	MenuName string `gorm:"-" json:"menu_name"`       // 前端需要的扁平化字段
 
 	// 关联
 	Menu *Menu `gorm:"foreignKey:MenuID" json:"menu,omitempty"`
@@ -40,12 +41,13 @@ func (Permission) TableName() string {
 
 // Menu 菜单实体
 type Menu struct {
-	ID        uint   `gorm:"column:id;primaryKey" json:"id"`
-	Name      string `gorm:"column:name;size:100;not null" json:"name"`
-	Route     string `gorm:"column:route;size:100" json:"route"`
-	ParentID  *uint  `gorm:"column:parent_id" json:"parent_id"` // 使用指针类型支持NULL
-	SortOrder int    `gorm:"column:sort_order;default:0" json:"sort_order"`
-	Status    int    `gorm:"column:status;default:0" json:"status"` // 0-启用 1-禁用
+	ID         uint   `gorm:"column:id;primaryKey" json:"id"`
+	Name       string `gorm:"column:name;size:100;not null" json:"name"`
+	Route      string `gorm:"column:route;size:100" json:"route"`
+	ParentID   *uint  `gorm:"column:parent_id" json:"parent_id"` // 使用指针类型支持NULL
+	SortOrder  int    `gorm:"column:sort_order;default:0" json:"sort_order"`
+	Status     int    `gorm:"column:status;default:0" json:"status"` // 0-启用 1-禁用
+	ParentName string `gorm:"-" json:"parent_name"`               // 前端需要的扁平化字段
 
 	// 关联
 	Parent   *Menu   `gorm:"foreignKey:ParentID" json:"parent,omitempty"`

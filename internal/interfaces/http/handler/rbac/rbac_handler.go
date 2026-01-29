@@ -2,8 +2,10 @@ package rbac
 
 import (
 	"charonoms/internal/application/service/rbac"
+	"charonoms/internal/domain/rbac/entity"
 	"charonoms/internal/interfaces/http/middleware"
-	"charonoms/pkg/response"
+	"charonoms/pkg/errors"
+	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -23,32 +25,64 @@ func NewRBACHandler(rbacService *rbac.RBACService) *RBACHandler {
 
 // ===== 角色管理 =====
 
-// GetRoles 获取角色列表
+// GetRoles 获取角色列表（支持按状态过滤）
 func (h *RBACHandler) GetRoles(c *gin.Context) {
 	roles, err := h.rbacService.GetRoleList(c.Request.Context())
 	if err != nil {
-		response.HandleError(c, err)
+		if appErr, ok := err.(*errors.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"error": appErr.Message})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
 		return
 	}
 
-	response.Success(c, gin.H{"roles": roles})
+	// 支持按状态过滤
+	statusParam := c.Query("status")
+	if statusParam != "" {
+		var status int8
+		if statusParam == "0" {
+			status = 0
+		} else if statusParam == "1" {
+			status = 1
+		} else {
+			c.JSON(http.StatusOK, gin.H{"roles": roles})
+			return
+		}
+
+		// 过滤角色
+		filteredRoles := make([]*entity.Role, 0)
+		for _, role := range roles {
+			if role.Status == status {
+				filteredRoles = append(filteredRoles, role)
+			}
+		}
+		c.JSON(http.StatusOK, gin.H{"roles": filteredRoles})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"roles": roles})
 }
 
 // CreateRole 创建角色
 func (h *RBACHandler) CreateRole(c *gin.Context) {
 	var req rbac.CreateRoleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "参数错误")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误"})
 		return
 	}
 
 	role, err := h.rbacService.CreateRole(c.Request.Context(), &req)
 	if err != nil {
-		response.HandleError(c, err)
+		if appErr, ok := err.(*errors.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"error": appErr.Message})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
 		return
 	}
 
-	response.Success(c, role)
+	c.JSON(http.StatusOK, role)
 }
 
 // UpdateRole 更新角色
@@ -56,22 +90,26 @@ func (h *RBACHandler) UpdateRole(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
-		response.BadRequest(c, "无效的角色ID")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的角色ID"})
 		return
 	}
 
 	var req rbac.UpdateRoleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "参数错误")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误"})
 		return
 	}
 
 	if err := h.rbacService.UpdateRole(c.Request.Context(), uint(id), &req); err != nil {
-		response.HandleError(c, err)
+		if appErr, ok := err.(*errors.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"error": appErr.Message})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
 		return
 	}
 
-	response.SuccessWithMessage(c, "更新成功", nil)
+	c.JSON(http.StatusOK, gin.H{"message": "更新成功"})
 }
 
 // UpdateRoleStatus 更新角色状态
@@ -79,24 +117,33 @@ func (h *RBACHandler) UpdateRoleStatus(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
-		response.BadRequest(c, "无效的角色ID")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的角色ID"})
 		return
 	}
 
 	var req struct {
-		Status int8 `json:"status" binding:"required"`
+		Status *int8 `json:"status"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "参数错误")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误"})
 		return
 	}
 
-	if err := h.rbacService.UpdateRoleStatus(c.Request.Context(), uint(id), req.Status); err != nil {
-		response.HandleError(c, err)
+	if req.Status == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "status参数不能为空"})
 		return
 	}
 
-	response.SuccessWithMessage(c, "更新成功", nil)
+	if err := h.rbacService.UpdateRoleStatus(c.Request.Context(), uint(id), *req.Status); err != nil {
+		if appErr, ok := err.(*errors.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"error": appErr.Message})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "更新成功"})
 }
 
 // ===== 权限管理 =====
@@ -105,11 +152,15 @@ func (h *RBACHandler) UpdateRoleStatus(c *gin.Context) {
 func (h *RBACHandler) GetPermissions(c *gin.Context) {
 	permissions, err := h.rbacService.GetPermissionList(c.Request.Context())
 	if err != nil {
-		response.HandleError(c, err)
+		if appErr, ok := err.(*errors.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"error": appErr.Message})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
 		return
 	}
 
-	response.Success(c, gin.H{"permissions": permissions})
+	c.JSON(http.StatusOK, gin.H{"permissions": permissions})
 }
 
 // UpdatePermissionStatus 更新权限状态
@@ -117,35 +168,49 @@ func (h *RBACHandler) UpdatePermissionStatus(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
-		response.BadRequest(c, "无效的权限ID")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的权限ID"})
 		return
 	}
 
 	var req struct {
-		Status int8 `json:"status" binding:"required"`
+		Status *int8 `json:"status"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "参数错误")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误"})
 		return
 	}
 
-	if err := h.rbacService.UpdatePermissionStatus(c.Request.Context(), uint(id), req.Status); err != nil {
-		response.HandleError(c, err)
+	if req.Status == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "status参数不能为空"})
 		return
 	}
 
-	response.SuccessWithMessage(c, "更新成功", nil)
+	if err := h.rbacService.UpdatePermissionStatus(c.Request.Context(), uint(id), *req.Status); err != nil {
+		if appErr, ok := err.(*errors.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"error": appErr.Message})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "更新成功"})
 }
 
 // GetPermissionTree 获取权限树
 func (h *RBACHandler) GetPermissionTree(c *gin.Context) {
 	tree, err := h.rbacService.GetPermissionTree(c.Request.Context())
 	if err != nil {
-		response.HandleError(c, err)
+		if appErr, ok := err.(*errors.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"error": appErr.Message})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
 		return
 	}
 
-	response.Success(c, tree)
+	// 前端期望 { tree: [...] } 格式
+	c.JSON(http.StatusOK, gin.H{"tree": tree})
 }
 
 // ===== 角色权限关联 =====
@@ -155,17 +220,27 @@ func (h *RBACHandler) GetRolePermissions(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
-		response.BadRequest(c, "无效的角色ID")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的角色ID"})
 		return
 	}
 
 	permissions, err := h.rbacService.GetRolePermissions(c.Request.Context(), uint(id))
 	if err != nil {
-		response.HandleError(c, err)
+		if appErr, ok := err.(*errors.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"error": appErr.Message})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
 		return
 	}
 
-	response.Success(c, gin.H{"permissions": permissions})
+	// 前端期望 permission_ids 数组（只要ID）
+	permissionIDs := make([]uint, 0, len(permissions))
+	for _, perm := range permissions {
+		permissionIDs = append(permissionIDs, perm.ID)
+	}
+
+	c.JSON(http.StatusOK, gin.H{"permission_ids": permissionIDs})
 }
 
 // UpdateRolePermissions 更新角色权限
@@ -173,22 +248,26 @@ func (h *RBACHandler) UpdateRolePermissions(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
-		response.BadRequest(c, "无效的角色ID")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的角色ID"})
 		return
 	}
 
 	var req rbac.UpdateRolePermissionsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "参数错误")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误"})
 		return
 	}
 
 	if err := h.rbacService.UpdateRolePermissions(c.Request.Context(), uint(id), &req); err != nil {
-		response.HandleError(c, err)
+		if appErr, ok := err.(*errors.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"error": appErr.Message})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
 		return
 	}
 
-	response.SuccessWithMessage(c, "更新成功", nil)
+	c.JSON(http.StatusOK, gin.H{"message": "更新成功"})
 }
 
 // ===== 菜单管理 =====
@@ -197,11 +276,15 @@ func (h *RBACHandler) UpdateRolePermissions(c *gin.Context) {
 func (h *RBACHandler) GetMenus(c *gin.Context) {
 	menus, err := h.rbacService.GetMenuList(c.Request.Context())
 	if err != nil {
-		response.HandleError(c, err)
+		if appErr, ok := err.(*errors.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"error": appErr.Message})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
 		return
 	}
 
-	response.Success(c, gin.H{"menus": menus})
+	c.JSON(http.StatusOK, gin.H{"menus": menus})
 }
 
 // GetMenu 获取用户的菜单树（前端导航用）
@@ -211,11 +294,20 @@ func (h *RBACHandler) GetMenu(c *gin.Context) {
 
 	menuTree, err := h.rbacService.GetUserMenuTree(c.Request.Context(), roleID, isSuperAdmin)
 	if err != nil {
-		response.HandleError(c, err)
+		if appErr, ok := err.(*errors.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"error": appErr.Message})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
 		return
 	}
 
-	response.Success(c, gin.H{"menus": menuTree})
+	// 前端期望 response.data.data.menus 格式
+	c.JSON(http.StatusOK, gin.H{
+		"data": gin.H{
+			"menus": menuTree,
+		},
+	})
 }
 
 // UpdateMenu 更新菜单
@@ -223,22 +315,26 @@ func (h *RBACHandler) UpdateMenu(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
-		response.BadRequest(c, "无效的菜单ID")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的菜单ID"})
 		return
 	}
 
 	var req rbac.UpdateMenuRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "参数错误")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误"})
 		return
 	}
 
 	if err := h.rbacService.UpdateMenu(c.Request.Context(), uint(id), &req); err != nil {
-		response.HandleError(c, err)
+		if appErr, ok := err.(*errors.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"error": appErr.Message})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
 		return
 	}
 
-	response.SuccessWithMessage(c, "更新成功", nil)
+	c.JSON(http.StatusOK, gin.H{"message": "更新成功"})
 }
 
 // UpdateMenuStatus 更新菜单状态
@@ -246,22 +342,31 @@ func (h *RBACHandler) UpdateMenuStatus(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
-		response.BadRequest(c, "无效的菜单ID")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的菜单ID"})
 		return
 	}
 
 	var req struct {
-		Status int8 `json:"status" binding:"required"`
+		Status *int8 `json:"status"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "参数错误")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误"})
 		return
 	}
 
-	if err := h.rbacService.UpdateMenuStatus(c.Request.Context(), uint(id), req.Status); err != nil {
-		response.HandleError(c, err)
+	if req.Status == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "status参数不能为空"})
 		return
 	}
 
-	response.SuccessWithMessage(c, "更新成功", nil)
+	if err := h.rbacService.UpdateMenuStatus(c.Request.Context(), uint(id), *req.Status); err != nil {
+		if appErr, ok := err.(*errors.AppError); ok {
+			c.JSON(appErr.Code, gin.H{"error": appErr.Message})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "更新成功"})
 }

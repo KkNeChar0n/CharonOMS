@@ -4,6 +4,7 @@ import (
 	"charonoms/internal/application/service/auth"
 	"charonoms/internal/interfaces/http/middleware"
 	"charonoms/pkg/response"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
@@ -41,7 +42,17 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	response.SuccessWithMessage(c, "鐧诲綍鎴愬姛", resp)
+	// 设置JWT token到cookie（前端兼容性）
+	c.SetCookie("auth_token", resp.Token, 86400, "/", "", false, true)
+
+	// 返回前端期望的格式（包含token和data包装层）
+	c.JSON(http.StatusOK, gin.H{
+		"data": gin.H{
+			"token":          resp.Token,
+			"username":       resp.Username,
+			"is_super_admin": resp.IsSuperAdmin,
+		},
+	})
 }
 
 // GetProfile get current user info
@@ -66,8 +77,19 @@ func (h *AuthHandler) GetProfile(c *gin.Context) {
 	// Don't return password
 	user.Password = ""
 
-	response.Success(c, gin.H{
+	// 获取是否为超级管理员
+	isSuperAdmin := false
+	if user.Role != nil && user.Role.IsSuperAdmin == 1 {
+		isSuperAdmin = true
+	}
+
+	// 返回格式同时包含顶层和data层（前端checkLoginStatus需要）
+	c.JSON(http.StatusOK, gin.H{
 		"username": user.Username,
+		"data": gin.H{
+			"username":       user.Username,
+			"is_super_admin": isSuperAdmin,
+		},
 	})
 }
 
@@ -93,7 +115,43 @@ func (h *AuthHandler) SyncRole(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, resp)
+	// 返回格式保持与其他API一致（带data包装层）
+	c.JSON(http.StatusOK, gin.H{
+		"data": resp,
+	})
+}
+
+// GetUserPermissions get current user permissions
+// @Summary Get current user permissions
+// @Tags Auth
+// @Produce json
+// @Success 200 {object} response.Response
+// @Router /api/user/permissions [get]
+func (h *AuthHandler) GetUserPermissions(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	if userID == 0 {
+		response.Unauthorized(c, "Not logged in")
+		return
+	}
+
+	roleID := middleware.GetRoleID(c)
+	isSuperAdmin := middleware.IsSuperAdmin(c)
+
+	permissions, err := h.authService.GetUserPermissions(c.Request.Context(), roleID, isSuperAdmin)
+	if err != nil {
+		response.HandleError(c, err)
+		return
+	}
+
+	// 返回权限的 action_id 列表
+	actionIDs := make([]string, 0, len(permissions))
+	for _, perm := range permissions {
+		actionIDs = append(actionIDs, perm.ActionID)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"permissions": actionIDs,
+	})
 }
 
 // Logout user logout
@@ -103,7 +161,11 @@ func (h *AuthHandler) SyncRole(c *gin.Context) {
 // @Success 200 {object} response.Response
 // @Router /api/logout [post]
 func (h *AuthHandler) Logout(c *gin.Context) {
-	// JWT is stateless, logout only needs frontend to delete token
-	// If token blacklist is needed, add logic here
-	response.SuccessWithMessage(c, "Logout successful", nil)
+	// 清除cookie中的auth_token
+	c.SetCookie("auth_token", "", -1, "/", "", false, true)
+
+	// 返回平铺JSON格式
+	c.JSON(http.StatusOK, gin.H{
+		"message": "登出成功",
+	})
 }

@@ -34,20 +34,21 @@ func NewRBACService(
 // CreateRoleRequest 创建角色请求
 type CreateRoleRequest struct {
 	Name        string `json:"name" binding:"required"`
-	Description string `json:"description"`
+	Description string `json:"comment"` // 前端使用comment字段名
 }
 
 // UpdateRoleRequest 更新角色请求
 type UpdateRoleRequest struct {
 	Name        string `json:"name" binding:"required"`
-	Description string `json:"description"`
+	Description string `json:"comment"` // 前端使用comment字段名
 }
 
-// CreateRole 创建角色
+// CreateRole 创建角色（默认禁用，需显式启用才能使用）
 func (s *RBACService) CreateRole(ctx context.Context, req *CreateRoleRequest) (*entity.Role, error) {
 	role := &entity.Role{
 		Name:        req.Name,
 		Description: req.Description,
+		Status:      1,
 	}
 
 	if err := s.roleRepo.Create(ctx, role); err != nil {
@@ -57,7 +58,7 @@ func (s *RBACService) CreateRole(ctx context.Context, req *CreateRoleRequest) (*
 	return role, nil
 }
 
-// UpdateRole 更新角色
+// UpdateRole 更新角色（仅禁用状态可编辑）
 func (s *RBACService) UpdateRole(ctx context.Context, id uint, req *UpdateRoleRequest) error {
 	role, err := s.roleRepo.GetByID(ctx, id)
 	if err != nil {
@@ -65,6 +66,10 @@ func (s *RBACService) UpdateRole(ctx context.Context, id uint, req *UpdateRoleRe
 			return errors.ErrNotFound
 		}
 		return err
+	}
+
+	if role.Status == 0 {
+		return errors.BadRequest("角色启用中，无法编辑")
 	}
 
 	role.Name = req.Name
@@ -124,15 +129,18 @@ type UpdateRolePermissionsRequest struct {
 	PermissionIDs []uint `json:"permission_ids"`
 }
 
-// UpdateRolePermissions 更新角色权限
+// UpdateRolePermissions 更新角色权限（仅禁用状态可修改）
 func (s *RBACService) UpdateRolePermissions(ctx context.Context, roleID uint, req *UpdateRolePermissionsRequest) error {
-	// 检查角色是否存在
-	_, err := s.roleRepo.GetByID(ctx, roleID)
+	role, err := s.roleRepo.GetByID(ctx, roleID)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return errors.ErrNotFound
 		}
 		return err
+	}
+
+	if role.Status == 0 {
+		return errors.BadRequest("角色启用中，无法编辑")
 	}
 
 	return s.roleRepo.UpdateRolePermissions(ctx, roleID, req.PermissionIDs)
@@ -153,7 +161,7 @@ type UpdateMenuRequest struct {
 	Status int8   `json:"status"`
 }
 
-// UpdateMenu 更新菜单
+// UpdateMenu 更新菜单（仅禁用状态可编辑，同级排序不可重复）
 func (s *RBACService) UpdateMenu(ctx context.Context, id uint, req *UpdateMenuRequest) error {
 	menu, err := s.menuRepo.GetByID(ctx, id)
 	if err != nil {
@@ -163,10 +171,29 @@ func (s *RBACService) UpdateMenu(ctx context.Context, id uint, req *UpdateMenuRe
 		return err
 	}
 
+	if menu.Status == 0 {
+		return errors.BadRequest("菜单启用中，无法编辑")
+	}
+
+	// 校验同级菜单sort_order唯一性
+	allMenus, err := s.menuRepo.List(ctx)
+	if err != nil {
+		return err
+	}
+	for _, m := range allMenus {
+		if m.ID == id {
+			continue
+		}
+		sameParent := (m.ParentID == nil && menu.ParentID == nil) ||
+			(m.ParentID != nil && menu.ParentID != nil && *m.ParentID == *menu.ParentID)
+		if sameParent && m.SortOrder == req.Sort {
+			return errors.BadRequest("同级菜单中排序已存在")
+		}
+	}
+
 	menu.Name = req.Name
 	menu.Route = req.Route
 	menu.SortOrder = req.Sort
-	menu.Status = int(req.Status)
 
 	return s.menuRepo.Update(ctx, menu)
 }

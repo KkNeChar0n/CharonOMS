@@ -9,26 +9,32 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// JWTAuth JWT认证中间件
+// JWTAuth JWT认证中间件（支持Header和Cookie两种方式）
 func JWTAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// 从 Header 获取 Token
+		var tokenString string
+
+		// 优先从 Header 获取 Token
 		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
+		if authHeader != "" {
+			parts := strings.SplitN(authHeader, " ", 2)
+			if len(parts) == 2 && parts[0] == "Bearer" {
+				tokenString = parts[1]
+			}
+		}
+
+		// Header 无 Token，尝试从 Cookie 读取
+		if tokenString == "" {
+			if cookie, err := c.Cookie("auth_token"); err == nil && cookie != "" {
+				tokenString = cookie
+			}
+		}
+
+		if tokenString == "" {
 			response.Unauthorized(c, "未登录")
 			c.Abort()
 			return
 		}
-
-		// Token 格式: Bearer <token>
-		parts := strings.SplitN(authHeader, " ", 2)
-		if !(len(parts) == 2 && parts[0] == "Bearer") {
-			response.Unauthorized(c, "Token 格式错误")
-			c.Abort()
-			return
-		}
-
-		tokenString := parts[1]
 
 		// 解析 Token
 		claims, err := jwt.ParseToken(tokenString, config.GlobalConfig.JWT)

@@ -25,7 +25,18 @@ func (r *MenuRepositoryImpl) List(ctx context.Context) ([]*entity.Menu, error) {
 		Preload("Parent").
 		Order("sort_order ASC, id ASC").
 		Find(&menus).Error
-	return menus, err
+	if err != nil {
+		return nil, err
+	}
+
+	// 填充扁平化字段
+	for _, menu := range menus {
+		if menu.Parent != nil {
+			menu.ParentName = menu.Parent.Name
+		}
+	}
+
+	return menus, nil
 }
 
 // GetByID 根据ID获取菜单

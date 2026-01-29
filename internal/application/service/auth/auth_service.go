@@ -2,7 +2,9 @@ package auth
 
 import (
 	"charonoms/internal/domain/auth/entity"
-	"charonoms/internal/domain/auth/repository"
+	authRepo "charonoms/internal/domain/auth/repository"
+	rbacEntity "charonoms/internal/domain/rbac/entity"
+	rbacRepo "charonoms/internal/domain/rbac/repository"
 	"charonoms/internal/infrastructure/config"
 	"charonoms/pkg/errors"
 	"charonoms/pkg/jwt"
@@ -14,14 +16,16 @@ import (
 
 // AuthService 认证应用服务
 type AuthService struct {
-	authRepo repository.AuthRepository
+	authRepo authRepo.AuthRepository
+	roleRepo rbacRepo.RoleRepository
 	jwtCfg   config.JWTConfig
 }
 
 // NewAuthService 创建认证服务实例
-func NewAuthService(authRepo repository.AuthRepository, jwtCfg config.JWTConfig) *AuthService {
+func NewAuthService(authRepository authRepo.AuthRepository, roleRepository rbacRepo.RoleRepository, jwtCfg config.JWTConfig) *AuthService {
 	return &AuthService{
-		authRepo: authRepo,
+		authRepo: authRepository,
+		roleRepo: roleRepository,
 		jwtCfg:   jwtCfg,
 	}
 }
@@ -122,6 +126,25 @@ func (s *AuthService) SyncRole(ctx context.Context, userID uint, oldRoleID uint,
 		RoleID:       user.RoleID,
 		IsSuperAdmin: newIsSuperAdmin,
 	}, nil
+}
+
+// GetUserPermissions 获取用户的权限列表
+func (s *AuthService) GetUserPermissions(ctx context.Context, roleID uint, isSuperAdmin bool) ([]*rbacEntity.Permission, error) {
+	// 获取角色的权限
+	permissions, err := s.roleRepo.GetRolePermissions(ctx, roleID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 只返回启用的权限（超级管理员和普通用户都需要过滤）
+	enabledPermissions := make([]*rbacEntity.Permission, 0)
+	for _, perm := range permissions {
+		if perm.Status == 0 {
+			enabledPermissions = append(enabledPermissions, perm)
+		}
+	}
+
+	return enabledPermissions, nil
 }
 
 // HashPassword 密码加密（工具方法）

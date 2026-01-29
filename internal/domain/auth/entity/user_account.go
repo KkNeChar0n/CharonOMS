@@ -1,18 +1,14 @@
 package entity
 
-import "time"
-
 // UserAccount 用户账号实体
 type UserAccount struct {
-	ID        uint      `gorm:"primaryKey" json:"id"`
-	Username  string    `gorm:"size:50;not null;uniqueIndex" json:"username"`
-	Password  string    `gorm:"size:255;not null" json:"-"` // 不返回给前端
-	Name      string    `gorm:"size:100" json:"name"`
-	Phone     string    `gorm:"size:20;uniqueIndex" json:"phone"`
-	RoleID    uint      `gorm:"not null" json:"role_id"`
-	Status    int8      `gorm:"default:0" json:"status"` // 0-正常 1-禁用
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID       uint   `gorm:"primaryKey" json:"id"`
+	Username string `gorm:"size:50;not null;uniqueIndex" json:"username"`
+	Password string `gorm:"size:255;not null" json:"-"` // 不返回给前端
+	Name     string `gorm:"size:100" json:"name"`
+	Phone    string `gorm:"size:20;uniqueIndex" json:"phone"`
+	RoleID   uint   `gorm:"not null" json:"role_id"`
+	Status   int8   `gorm:"default:0" json:"status"` // 0-正常 1-禁用
 
 	// 关联
 	Role *Role `gorm:"foreignKey:RoleID" json:"role,omitempty"`

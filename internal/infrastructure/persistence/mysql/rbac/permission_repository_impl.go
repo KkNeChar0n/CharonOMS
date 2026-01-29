@@ -25,7 +25,18 @@ func (r *PermissionRepositoryImpl) List(ctx context.Context) ([]*entity.Permissi
 		Preload("Menu").
 		Order("id ASC").
 		Find(&permissions).Error
-	return permissions, err
+	if err != nil {
+		return nil, err
+	}
+
+	// 填充扁平化字段
+	for _, perm := range permissions {
+		if perm.Menu != nil {
+			perm.MenuName = perm.Menu.Name
+		}
+	}
+
+	return permissions, nil
 }
 
 // ListByStatus 根据状态获取权限列表
@@ -89,7 +100,7 @@ func (r *PermissionRepositoryImpl) GetTree(ctx context.Context) (interface{}, er
 	var menus []*entity.Menu
 	err = r.db.WithContext(ctx).
 		Where("status = 0").
-		Order("parent_id ASC, sort ASC, id ASC").
+		Order("parent_id ASC, sort_order ASC, id ASC").
 		Find(&menus).Error
 
 	if err != nil {
@@ -100,14 +111,13 @@ func (r *PermissionRepositoryImpl) GetTree(ctx context.Context) (interface{}, er
 	result := make([]map[string]interface{}, 0)
 	for _, menu := range menus {
 		if menu.ParentID == nil { // 一级菜单
-			menuData := map[string]interface{}{
-				"id":          menu.ID,
-				"name":        menu.Name,
-				"route":       menu.Route,
-				"permissions": menuMap[menu.ID],
-				"children":    make([]map[string]interface{}, 0),
+			// 收集一级菜单的权限（包括子菜单的权限）
+			allPermissions := make([]map[string]interface{}, 0)
+			if perms, ok := menuMap[menu.ID]; ok {
+				allPermissions = append(allPermissions, perms...)
 			}
 
+			children := make([]map[string]interface{}, 0)
 			// 查找二级菜单
 			for _, childMenu := range menus {
 				if childMenu.ParentID != nil && *childMenu.ParentID == menu.ID {
@@ -117,8 +127,21 @@ func (r *PermissionRepositoryImpl) GetTree(ctx context.Context) (interface{}, er
 						"route":       childMenu.Route,
 						"permissions": menuMap[childMenu.ID],
 					}
-					menuData["children"] = append(menuData["children"].([]map[string]interface{}), childData)
+					children = append(children, childData)
+
+					// 将子菜单的权限也添加到一级菜单（前端需要）
+					if childPerms, ok := menuMap[childMenu.ID]; ok {
+						allPermissions = append(allPermissions, childPerms...)
+					}
 				}
+			}
+
+			menuData := map[string]interface{}{
+				"id":          menu.ID,
+				"name":        menu.Name,
+				"route":       menu.Route,
+				"permissions": allPermissions,
+				"children":    children,
 			}
 
 			result = append(result, menuData)

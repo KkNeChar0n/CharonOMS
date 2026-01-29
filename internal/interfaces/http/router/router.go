@@ -66,17 +66,17 @@ func SetupRouter(cfg *config.Config) *gin.Engine {
 
 // setupDependencies setup dependency injection
 func setupDependencies(r *gin.Engine, cfg *config.Config) {
-	// Auth module
-	authRepo := authImpl.NewAuthRepository(mysql.DB)
-	authSvc := authService.NewAuthService(authRepo, cfg.JWT)
-	authHdl := auth.NewAuthHandler(authSvc)
-
-	// RBAC module
+	// RBAC module (初始化在前，因为 AuthService 需要依赖 roleRepo)
 	roleRepo := rbacImpl.NewRoleRepository(mysql.DB)
 	permissionRepo := rbacImpl.NewPermissionRepository(mysql.DB)
 	menuRepo := rbacImpl.NewMenuRepository(mysql.DB)
 	rbacSvc := rbacService.NewRBACService(roleRepo, permissionRepo, menuRepo)
 	rbacHdl := rbac.NewRBACHandler(rbacSvc)
+
+	// Auth module
+	authRepo := authImpl.NewAuthRepository(mysql.DB)
+	authSvc := authService.NewAuthService(authRepo, roleRepo, cfg.JWT)
+	authHdl := auth.NewAuthHandler(authSvc)
 
 	// Basic module (sex, grade, subject)
 	basicRepo := persistence.NewBasicRepository(mysql.DB)
@@ -140,6 +140,7 @@ func setupDependencies(r *gin.Engine, cfg *config.Config) {
 			// User info
 			authorized.GET("/profile", authHdl.GetProfile)
 			authorized.GET("/sync-role", authHdl.SyncRole)
+			authorized.GET("/user/permissions", authHdl.GetUserPermissions)
 
 			// Menu (for frontend navigation)
 			authorized.GET("/menu", rbacHdl.GetMenu)
@@ -170,6 +171,14 @@ func setupDependencies(r *gin.Engine, cfg *config.Config) {
 				menus.GET("", rbacHdl.GetMenus)
 				menus.PUT("/:id", rbacHdl.UpdateMenu)
 				menus.PUT("/:id/status", rbacHdl.UpdateMenuStatus)
+			}
+
+			// Menu management alias (前端使用连字符)
+			menusAlias := authorized.Group("/menu-management")
+			{
+				menusAlias.GET("", rbacHdl.GetMenus)
+				menusAlias.PUT("/:id", rbacHdl.UpdateMenu)
+				menusAlias.PUT("/:id/status", rbacHdl.UpdateMenuStatus)
 			}
 
 			// Basic data (sex, grade, subject)

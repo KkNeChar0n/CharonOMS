@@ -1310,7 +1310,10 @@ createApp({
                 if (response.data.username) {
                     this.isLoggedIn = true;
                     this.username = response.data.data.username;
+                    this.isSuperAdmin = response.data.data.is_super_admin || false;
                     this.error = null;
+                    // 加载用户权限
+                    await this.fetchEnabledPermissions();
                     // 登录成功后获取学生和教练数据
                     this.fetchStudents();
                     this.fetchCoaches();
@@ -1378,12 +1381,10 @@ createApp({
 
         // 设置活动菜单
         async setActiveMenu(menu) {
-            // 先同步角色信息，检查是否有变更
+            // 先同步角色信息，如果角色有变更会自动重新加载权限
             await this.syncRoleInfo();
 
             this.activeMenu = menu;
-            // 每次切换菜单时重新加载权限列表
-            await this.fetchEnabledPermissions();
             // 切换菜单时刷新对应页面的数据
             if (menu === 'students') {
                 this.fetchStudents();
@@ -4249,14 +4250,14 @@ createApp({
             try {
                 const response = await axios.get('/api/sync-role', { withCredentials: true });
 
-                if (response.data.role_changed) {
+                if (response.data.data && response.data.data.role_changed) {
                     // 显示全局loading状态
                     this.syncingRole = true;
 
                     try {
                         // 角色发生变化，更新本地状态
                         this.isSuperAdmin = response.data.data.is_super_admin;
-                        console.log('角色已更新:', response.data.is_super_admin ? '超级管理员' : '普通角色');
+                        console.log('角色已更新:', response.data.data.is_super_admin ? '超级管理员' : '普通角色');
 
                         // 重新加载菜单和权限
                         await this.fetchMenus();
@@ -4276,15 +4277,15 @@ createApp({
             }
         },
 
-        // 获取启用的权限列表（用于按钮权限控制）
+        // 获取当前用户的权限列表（用于按钮权限控制）
         async fetchEnabledPermissions() {
             this.loadingPermissions = true;
             try {
-                const response = await axios.get('/api/permissions?status=0', { withCredentials: true });
-                this.enabledPermissions = response.data.permissions.map(p => p.action_id);
-                console.log('已加载权限列表:', this.enabledPermissions);
+                const response = await axios.get('/api/user/permissions', { withCredentials: true });
+                this.enabledPermissions = response.data.permissions || [];
+                console.log('已加载用户权限列表:', this.enabledPermissions);
             } catch (err) {
-                console.error('获取权限列表失败:', err);
+                console.error('获取用户权限列表失败:', err);
                 this.enabledPermissions = [];
             } finally {
                 this.loadingPermissions = false;
