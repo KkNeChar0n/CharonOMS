@@ -46,6 +46,8 @@ func (h *GoodsHandler) GetGoods(c *gin.Context) {
 				switch v := g["classifyid"].(type) {
 				case int:
 					cid = v
+				case int32:
+					cid = int(v)
 				case int64:
 					cid = int(v)
 				case float64:
@@ -72,6 +74,8 @@ func (h *GoodsHandler) GetGoods(c *gin.Context) {
 				switch v := g["status"].(type) {
 				case int:
 					s = v
+				case int32:
+					s = int(v)
 				case int64:
 					s = int(v)
 				case float64:
