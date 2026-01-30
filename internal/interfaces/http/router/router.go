@@ -12,6 +12,8 @@ import (
 	goodsService "charonoms/internal/application/service/goods"
 	rbacService "charonoms/internal/application/service/rbac"
 	studentService "charonoms/internal/application/service/student"
+	activityService "charonoms/internal/application/activity"
+	activityTemplateService "charonoms/internal/application/activity_template"
 	"charonoms/internal/infrastructure/config"
 	"charonoms/internal/infrastructure/persistence"
 	accountImpl "charonoms/internal/infrastructure/persistence/mysql/account"
@@ -37,6 +39,7 @@ import (
 	"charonoms/internal/interfaces/http/handler/placeholder"
 	"charonoms/internal/interfaces/http/handler/rbac"
 	"charonoms/internal/interfaces/http/handler/student"
+	"charonoms/internal/interfaces/http/handler"
 	"charonoms/internal/interfaces/http/middleware"
 
 	"github.com/gin-gonic/gin"
@@ -122,6 +125,16 @@ func setupDependencies(r *gin.Engine, cfg *config.Config) {
 	goodsRepo := goodsImpl.NewGoodsRepository(mysql.DB)
 	goodsSvc := goodsService.NewGoodsService(goodsRepo)
 	goodsHdl := goods.NewGoodsHandler(goodsSvc)
+
+	// Activity Template module
+	activityTemplateRepo := persistence.NewActivityTemplateRepository(mysql.DB)
+	activityTemplateSvc := activityTemplateService.NewService(activityTemplateRepo, mysql.DB)
+	activityTemplateHdl := handler.NewActivityTemplateHandler(activityTemplateSvc)
+
+	// Activity module
+	activityRepo := persistence.NewActivityRepository(mysql.DB)
+	activitySvc := activityService.NewService(activityRepo, activityTemplateRepo, mysql.DB)
+	activityHdl := handler.NewActivityHandler(activitySvc)
 
 	// Placeholder handler for unimplemented features
 	placeholderHdl := placeholder.NewPlaceholderHandler()
@@ -275,7 +288,31 @@ func setupDependencies(r *gin.Engine, cfg *config.Config) {
 			authorized.GET("/approval_flow_template", placeholderHdl.HandlePlaceholder)
 			authorized.GET("/approval_flow_management", placeholderHdl.HandlePlaceholder)
 
-			// Marketing Management - Placeholder routes
+			// Activity Template Management (API)
+			activityTemplates := authorized.Group("/activity-templates")
+			{
+				activityTemplates.GET("", activityTemplateHdl.ListTemplates)
+				activityTemplates.GET("/active", activityTemplateHdl.ListActiveTemplates)
+				activityTemplates.POST("", activityTemplateHdl.CreateTemplate)
+				activityTemplates.GET("/:id", activityTemplateHdl.GetTemplate)
+				activityTemplates.PUT("/:id", activityTemplateHdl.UpdateTemplate)
+				activityTemplates.DELETE("/:id", activityTemplateHdl.DeleteTemplate)
+				activityTemplates.PUT("/:id/status", activityTemplateHdl.UpdateTemplateStatus)
+			}
+
+			// Activity Management (API)
+			activities := authorized.Group("/activities")
+			{
+				activities.GET("", activityHdl.ListActivities)
+				activities.POST("", activityHdl.CreateActivity)
+				activities.GET("/by-date-range", activityHdl.GetActivitiesByDateRange)
+				activities.GET("/:id", activityHdl.GetActivity)
+				activities.PUT("/:id", activityHdl.UpdateActivity)
+				activities.DELETE("/:id", activityHdl.DeleteActivity)
+				activities.PUT("/:id/status", activityHdl.UpdateActivityStatus)
+			}
+
+			// Marketing Management - Menu placeholder (前端菜单导航使用)
 			authorized.GET("/activity_template", placeholderHdl.HandlePlaceholder)
 			authorized.GET("/activity_management", placeholderHdl.HandlePlaceholder)
 

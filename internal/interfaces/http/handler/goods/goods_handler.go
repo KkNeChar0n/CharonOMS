@@ -22,10 +22,26 @@ func NewGoodsHandler(goodsService *goodsService.GoodsService) *GoodsHandler {
 	}
 }
 
-// GetGoods 获取商品列表
-// GET /api/goods
+// GetGoods 获取商品列表（支持按分类和状态过滤）
+// GET /api/goods?classifyid=15&status=0
 func (h *GoodsHandler) GetGoods(c *gin.Context) {
-	goods, err := h.goodsService.GetGoodsList()
+	// 获取查询参数
+	var classifyID *int
+	var status *int
+
+	if classifyIDStr := c.Query("classifyid"); classifyIDStr != "" {
+		if id, err := strconv.Atoi(classifyIDStr); err == nil {
+			classifyID = &id
+		}
+	}
+
+	if statusStr := c.Query("status"); statusStr != "" {
+		if s, err := strconv.Atoi(statusStr); err == nil {
+			status = &s
+		}
+	}
+
+	goods, err := h.goodsService.GetGoodsList(classifyID, status)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

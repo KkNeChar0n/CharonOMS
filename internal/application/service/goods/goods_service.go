@@ -50,9 +50,9 @@ func toFloat64(v interface{}) (float64, bool) {
 	}
 }
 
-// GetGoodsList 获取商品列表
-func (s *GoodsService) GetGoodsList() ([]map[string]interface{}, error) {
-	return s.goodsRepo.GetList()
+// GetGoodsList 获取商品列表（支持按分类和状态过滤）
+func (s *GoodsService) GetGoodsList(classifyID *int, status *int) ([]map[string]interface{}, error) {
+	return s.goodsRepo.GetList(classifyID, status)
 }
 
 // GetGoodsByID 获取商品详情

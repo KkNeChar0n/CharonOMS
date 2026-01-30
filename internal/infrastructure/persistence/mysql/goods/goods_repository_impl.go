@@ -20,7 +20,7 @@ func NewGoodsRepository(db *gorm.DB) repository.GoodsRepository {
 }
 
 // GetList 获取商品列表（含品牌、分类、属性信息）
-func (r *GoodsRepositoryImpl) GetList() ([]map[string]interface{}, error) {
+func (r *GoodsRepositoryImpl) GetList(classifyID *int, status *int) ([]map[string]interface{}, error) {
 	var results []map[string]interface{}
 
 	query := `
@@ -46,11 +46,29 @@ func (r *GoodsRepositoryImpl) GetList() ([]map[string]interface{}, error) {
 		LEFT JOIN goods_attributevalue gav ON g.id = gav.goodsid
 		LEFT JOIN attribute_value av ON gav.attributevalueid = av.id
 		LEFT JOIN attribute a ON av.attributeid = a.id
+		WHERE 1=1
+	`
+
+	var args []interface{}
+
+	// 添加分类过滤
+	if classifyID != nil {
+		query += " AND g.classifyid = ?"
+		args = append(args, *classifyID)
+	}
+
+	// 添加状态过滤
+	if status != nil {
+		query += " AND g.status = ?"
+		args = append(args, *status)
+	}
+
+	query += `
 		GROUP BY g.id, g.name, g.brandid, b.name, g.classifyid, c.name, g.isgroup, g.price, g.status, g.create_time, g.update_time
 		ORDER BY g.create_time DESC
 	`
 
-	if err := r.db.Raw(query).Scan(&results).Error; err != nil {
+	if err := r.db.Raw(query, args...).Scan(&results).Error; err != nil {
 		return nil, fmt.Errorf("failed to get goods list: %w", err)
 	}
 

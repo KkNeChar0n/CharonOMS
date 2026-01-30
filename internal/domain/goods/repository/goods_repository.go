@@ -2,8 +2,8 @@ package repository
 
 // GoodsRepository 商品仓储接口
 type GoodsRepository interface {
-	// GetList 获取商品列表（含品牌、分类、属性信息）
-	GetList() ([]map[string]interface{}, error)
+	// GetList 获取商品列表（含品牌、分类、属性信息，支持按分类和状态过滤）
+	GetList(classifyID *int, status *int) ([]map[string]interface{}, error)
 
 	// GetByID 根据ID获取商品详情（含属性值ID数组和包含的商品ID数组）
 	GetByID(id int) (map[string]interface{}, error)

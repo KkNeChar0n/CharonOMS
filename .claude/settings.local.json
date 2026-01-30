@@ -75,7 +75,10 @@
       "Bash(git commit -m \"$\\(cat <<''EOF''\nfix: 添加int32类型支持以修复商品筛选问题\n\n问题：\n- GORM/MySQL返回的整数字段类型是int32\n- Handler代码只处理int、int64、float64类型\n- 导致所有商品的classifyid和status字段类型断言失败\n- 筛选结果始终为空\n\n修复：\n- 在类型switch中添加int32分支\n- 同时修复classifyid和status两个字段的类型处理\n- 移除调试日志\n\n测试：\n- GET /api/goods?classifyid=16&status=0 现在能正确返回结果\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(git commit -m \"$\\(cat <<''EOF''\nfix: 添加int8/uint8类型支持修复tinyint字段筛选\n\n问题根源：\n- MySQL的tinyint类型被GORM映射为Go的int8或uint8类型\n- status字段\\(tinyint\\)和brandid等字段都是tinyint类型\n- 之前的代码只处理int/int32/int64/float64类型\n- 导致status筛选时所有商品都被跳过，返回空结果\n\n解决方案：\n- 在类型switch中添加int8和uint8分支\n- 同时处理classifyid和status两个字段\n- 保持代码简洁，移除所有调试日志\n\n影响：\n- GET /api/goods?classifyid=X&status=Y 现在能正确筛选\n- 活动模板\"按类型\"选择功能正常工作\n- 只显示指定分类且启用状态的商品\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(git checkout:*)",
-      "Bash(git commit -m \"$\\(cat <<''EOF''\nrevert: 回滚营销管理模块到开发前状态\n\n- 删除所有营销模块代码（domain/application/infrastructure/interface层）\n- 删除数据库中的营销相关表（activity_template, activity_template_goods, activity, activity_detail）\n- 删除营销模块权限数据（menu_id 22, 23）\n- 删除营销相关SQL脚本\n- 删除OpenSpec归档（2026-01-29-migrate-marketing-module）\n- 恢复router.go和goods_handler.go到营销模块开发前状态\n\n原因：表结构设计与原项目不一致，需要重新设计\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nrevert: 回滚营销管理模块到开发前状态\n\n- 删除所有营销模块代码（domain/application/infrastructure/interface层）\n- 删除数据库中的营销相关表（activity_template, activity_template_goods, activity, activity_detail）\n- 删除营销模块权限数据（menu_id 22, 23）\n- 删除营销相关SQL脚本\n- 删除OpenSpec归档（2026-01-29-migrate-marketing-module）\n- 恢复router.go和goods_handler.go到营销模块开发前状态\n\n原因：表结构设计与原项目不一致，需要重新设计\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(mysqldump:*)",
+      "Bash(cmd /c \"charonoms.exe\")",
+      "Bash(cmd /c \"start /B charonoms.exe > server.log 2>&1\")"
     ]
   }
 }
