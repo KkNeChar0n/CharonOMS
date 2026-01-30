@@ -14,8 +14,10 @@ import (
 	studentService "charonoms/internal/application/service/student"
 	activityService "charonoms/internal/application/activity"
 	activityTemplateService "charonoms/internal/application/activity_template"
+	approvalService "charonoms/internal/application/service/approval"
 	"charonoms/internal/infrastructure/config"
 	"charonoms/internal/infrastructure/persistence"
+	approvalImpl "charonoms/internal/infrastructure/persistence/approval"
 	accountImpl "charonoms/internal/infrastructure/persistence/mysql/account"
 	attributeImpl "charonoms/internal/infrastructure/persistence/mysql/attribute"
 	authImpl "charonoms/internal/infrastructure/persistence/mysql/auth"
@@ -28,6 +30,7 @@ import (
 	studentImpl "charonoms/internal/infrastructure/persistence/mysql/student"
 	"charonoms/internal/infrastructure/persistence/mysql"
 	"charonoms/internal/interfaces/http/handler/account"
+	"charonoms/internal/interfaces/http/handler/approval"
 	"charonoms/internal/interfaces/http/handler/attribute"
 	"charonoms/internal/interfaces/http/handler/auth"
 	"charonoms/internal/interfaces/http/handler/basic"
@@ -41,6 +44,7 @@ import (
 	"charonoms/internal/interfaces/http/handler/student"
 	"charonoms/internal/interfaces/http/handler"
 	"charonoms/internal/interfaces/http/middleware"
+	approvalDomainService "charonoms/internal/domain/approval/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -135,6 +139,17 @@ func setupDependencies(r *gin.Engine, cfg *config.Config) {
 	activityRepo := persistence.NewActivityRepository(mysql.DB)
 	activitySvc := activityService.NewService(activityRepo, activityTemplateRepo, mysql.DB)
 	activityHdl := handler.NewActivityHandler(activitySvc)
+
+	// Approval module
+	approvalTypeRepo := approvalImpl.NewApprovalFlowTypeRepository(mysql.DB)
+	approvalTemplateRepo := approvalImpl.NewApprovalFlowTemplateRepository(mysql.DB)
+	approvalMgmtRepo := approvalImpl.NewApprovalFlowManagementRepository(mysql.DB)
+	approvalNodeRepo := approvalImpl.NewApprovalNodeCaseRepository(mysql.DB)
+	approvalDomainSvc := approvalDomainService.NewApprovalFlowService(approvalMgmtRepo, approvalNodeRepo, approvalTemplateRepo)
+	approvalTypeSvc := approvalService.NewApprovalFlowTypeService(approvalTypeRepo)
+	approvalTemplateSvc := approvalService.NewApprovalFlowTemplateService(approvalTemplateRepo, approvalTypeRepo)
+	approvalMgmtSvc := approvalService.NewApprovalFlowManagementService(approvalMgmtRepo, approvalNodeRepo, approvalDomainSvc)
+	approvalHdl := approval.NewApprovalHandler(approvalTypeSvc, approvalTemplateSvc, approvalMgmtSvc)
 
 	// Placeholder handler for unimplemented features
 	placeholderHdl := placeholder.NewPlaceholderHandler()
@@ -283,7 +298,39 @@ func setupDependencies(r *gin.Engine, cfg *config.Config) {
 				goods.PUT("/:id/status", goodsHdl.UpdateStatus)
 			}
 
-			// Approval Flow Management - Placeholder routes
+			// Approval Flow Management
+			// 审批流类型管理
+			approvalTypes := authorized.Group("/approval-flow-types")
+			{
+				approvalTypes.GET("", approvalHdl.GetApprovalFlowTypes)
+				approvalTypes.POST("", approvalHdl.CreateApprovalFlowType)
+				approvalTypes.PUT("/:id/status", approvalHdl.UpdateApprovalFlowTypeStatus)
+			}
+
+			// 审批流模板管理
+			approvalTemplates := authorized.Group("/approval-flow-templates")
+			{
+				approvalTemplates.GET("", approvalHdl.GetApprovalFlowTemplates)
+				approvalTemplates.GET("/:id", approvalHdl.GetApprovalFlowTemplateDetail)
+				approvalTemplates.POST("", approvalHdl.CreateApprovalFlowTemplate)
+				approvalTemplates.PUT("/:id/status", approvalHdl.UpdateApprovalFlowTemplateStatus)
+			}
+
+			// 审批流实例管理
+			approvalFlows := authorized.Group("/approval-flows")
+			{
+				approvalFlows.GET("/initiated", approvalHdl.GetInitiatedFlows)
+				approvalFlows.GET("/pending", approvalHdl.GetPendingFlows)
+				approvalFlows.GET("/completed", approvalHdl.GetCompletedFlows)
+				approvalFlows.GET("/copied", approvalHdl.GetCopiedFlows)
+				approvalFlows.GET("/:id/detail", approvalHdl.GetApprovalFlowDetail)
+				approvalFlows.POST("/create-from-template", approvalHdl.CreateFromTemplate)
+				approvalFlows.PUT("/:id/cancel", approvalHdl.CancelApprovalFlow)
+				approvalFlows.POST("/approve", approvalHdl.ApproveFlow)
+				approvalFlows.POST("/reject", approvalHdl.RejectFlow)
+			}
+
+			// Approval Flow Management - menu placeholder
 			authorized.GET("/approval_flow_type", placeholderHdl.HandlePlaceholder)
 			authorized.GET("/approval_flow_template", placeholderHdl.HandlePlaceholder)
 			authorized.GET("/approval_flow_management", placeholderHdl.HandlePlaceholder)

@@ -5230,7 +5230,7 @@
                         </div>
                         <div class="form-group" style="flex: 1; margin-left: 15px;">
                             <label>审批流类型 <span class="required">*</span></label>
-                            <select v-model="addApprovalFlowTemplateData.approval_flow_type_id" class="styled-select" required>
+                            <select v-model.number="addApprovalFlowTemplateData.approval_flow_type_id" class="styled-select" required>
                                 <option value="">请选择审批流类型</option>
                                 <option v-for="type in activeApprovalFlowTypes" :key="type.id" :value="type.id">{{ type.name }}</option>
                             </select>
@@ -5258,9 +5258,9 @@
                                         </div>
                                         <div class="form-group" style="flex: 1; margin-left: 15px;">
                                             <label>审批类型 <span class="required">*</span></label>
-                                            <select v-model="node.type" class="styled-select" required>
-                                                <option value="0">会签</option>
-                                                <option value="1">或签</option>
+                                            <select v-model.number="node.type" class="styled-select" required>
+                                                <option :value="0">会签</option>
+                                                <option :value="1">或签</option>
                                             </select>
                                         </div>
                                     </div>
@@ -5268,7 +5268,7 @@
                                         <label>审批人员 <span class="required">*</span></label>
                                         <div class="approver-list">
                                             <div v-for="(approver, approverIndex) in node.approvers" :key="approverIndex" class="approver-item">
-                                                <select v-model="node.approvers[approverIndex]" class="styled-select" required>
+                                                <select v-model.number="node.approvers[approverIndex]" class="styled-select" required>
                                                     <option value="">请选择审批人员</option>
                                                     <option v-for="user in activeUserAccounts" :key="user.id" :value="user.id">{{ user.username }}</option>
                                                 </select>
@@ -5290,7 +5290,7 @@
                                         <label>抄送人员</label>
                                         <div class="approver-list">
                                             <div v-for="(copyUser, copyIndex) in addApprovalFlowTemplateData.copy_users" :key="copyIndex" class="approver-item">
-                                                <select v-model="addApprovalFlowTemplateData.copy_users[copyIndex]" class="styled-select">
+                                                <select v-model.number="addApprovalFlowTemplateData.copy_users[copyIndex]" class="styled-select">
                                                     <option value="">请选择抄送人员</option>
                                                     <option v-for="user in activeUserAccounts" :key="user.id" :value="user.id">{{ user.username }}</option>
                                                 </select>

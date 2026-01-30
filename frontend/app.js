@@ -3578,7 +3578,7 @@ createApp({
                 if (this.approvalFlowTypeFilters.status !== '') params.append('status', this.approvalFlowTypeFilters.status);
 
                 const response = await axios.get(`/api/approval-flow-types?${params.toString()}`, { withCredentials: true });
-                this.approvalFlowTypes = response.data.approval_flow_types || [];
+                this.approvalFlowTypes = response.data.data.approval_flow_types || [];
                 this.filteredApprovalFlowTypes = this.approvalFlowTypes;
             } catch (err) {
                 console.error('获取审批流类型失败:', err);
@@ -3670,7 +3670,7 @@ createApp({
                 if (this.approvalFlowTemplateFilters.status !== '') params.append('status', this.approvalFlowTemplateFilters.status);
 
                 const response = await axios.get(`/api/approval-flow-templates?${params.toString()}`, { withCredentials: true });
-                this.approvalFlowTemplates = response.data.approval_flow_templates || [];
+                this.approvalFlowTemplates = response.data.data.approval_flow_templates || [];
                 this.filteredApprovalFlowTemplates = this.approvalFlowTemplates;
             } catch (err) {
                 console.error('获取审批流模板失败:', err);
@@ -3702,7 +3702,7 @@ createApp({
             try {
                 // 获取启用的审批流类型
                 const typesResponse = await axios.get('/api/approval-flow-types?status=0', { withCredentials: true });
-                this.activeApprovalFlowTypes = typesResponse.data.approval_flow_types || [];
+                this.activeApprovalFlowTypes = typesResponse.data.data.approval_flow_types || [];
 
                 // 获取启用的用户账号
                 const accountsResponse = await axios.get('/api/accounts?status=0', { withCredentials: true });
@@ -3818,7 +3818,7 @@ createApp({
         async openViewApprovalFlowTemplateDrawer(template) {
             try {
                 const response = await axios.get(`/api/approval-flow-templates/${template.id}`, { withCredentials: true });
-                const data = response.data;
+                const data = response.data.data;
 
                 this.viewApprovalFlowTemplateData = {
                     name: data.template.name,
@@ -3912,7 +3912,7 @@ createApp({
                 if (this.initiatedFlowFilters.status !== '') params.append('status', this.initiatedFlowFilters.status);
 
                 const response = await axios.get(`/api/approval-flows/initiated?${params.toString()}`, { withCredentials: true });
-                this.initiatedFlows = response.data.flows || [];
+                this.initiatedFlows = response.data.data.initiated_flows || [];
             } catch (err) {
                 console.error('获取我发起的审批流失败:', err);
                 alert(err.response?.data?.error || '获取审批流列表失败');
@@ -3984,7 +3984,7 @@ createApp({
                 if (this.pendingFlowFilters.approval_flow_type_id) params.append('approval_flow_type_id', this.pendingFlowFilters.approval_flow_type_id);
 
                 const response = await axios.get(`/api/approval-flows/pending?${params.toString()}`, { withCredentials: true });
-                this.pendingFlows = response.data.flows || [];
+                this.pendingFlows = response.data.data.pending_flows || [];
             } catch (err) {
                 console.error('获取待我审批列表失败:', err);
                 alert(err.response?.data?.error || '获取列表失败');
@@ -4075,7 +4075,7 @@ createApp({
                 if (this.completedFlowFilters.approval_flow_type_id) params.append('approval_flow_type_id', this.completedFlowFilters.approval_flow_type_id);
 
                 const response = await axios.get(`/api/approval-flows/completed?${params.toString()}`, { withCredentials: true });
-                this.completedFlows = response.data.flows || [];
+                this.completedFlows = response.data.data.completed_flows || [];
             } catch (err) {
                 console.error('获取处理完成列表失败:', err);
                 alert(err.response?.data?.error || '获取列表失败');
@@ -4116,7 +4116,7 @@ createApp({
                 if (this.copiedFlowFilters.approval_flow_type_id) params.append('approval_flow_type_id', this.copiedFlowFilters.approval_flow_type_id);
 
                 const response = await axios.get(`/api/approval-flows/copied?${params.toString()}`, { withCredentials: true });
-                this.copiedFlows = response.data.flows || [];
+                this.copiedFlows = response.data.data.copied_flows || [];
             } catch (err) {
                 console.error('获取抄送列表失败:', err);
                 alert(err.response?.data?.error || '获取列表失败');
