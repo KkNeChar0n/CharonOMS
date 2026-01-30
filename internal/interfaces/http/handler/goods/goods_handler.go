@@ -22,81 +22,13 @@ func NewGoodsHandler(goodsService *goodsService.GoodsService) *GoodsHandler {
 	}
 }
 
-// GetGoods 获取商品列表（支持按分类和状态筛选）
-// GET /api/goods?classifyid=1&status=0
+// GetGoods 获取商品列表
+// GET /api/goods
 func (h *GoodsHandler) GetGoods(c *gin.Context) {
-	// 获取查询参数
-	classifyIDStr := c.Query("classifyid")
-	statusStr := c.Query("status")
-
 	goods, err := h.goodsService.GetGoodsList()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
-	}
-
-	// 按分类ID筛选
-	if classifyIDStr != "" {
-		classifyID, err := strconv.Atoi(classifyIDStr)
-		if err == nil {
-			filtered := make([]map[string]interface{}, 0)
-			for _, g := range goods {
-				// 处理不同的整数类型
-				var cid int
-				switch v := g["classifyid"].(type) {
-				case int:
-					cid = v
-				case int8:
-					cid = int(v)
-				case uint8:
-					cid = int(v)
-				case int32:
-					cid = int(v)
-				case int64:
-					cid = int(v)
-				case float64:
-					cid = int(v)
-				default:
-					continue
-				}
-				if cid == classifyID {
-					filtered = append(filtered, g)
-				}
-			}
-			goods = filtered
-		}
-	}
-
-	// 按状态筛选
-	if statusStr != "" {
-		status, err := strconv.Atoi(statusStr)
-		if err == nil {
-			filtered := make([]map[string]interface{}, 0)
-			for _, g := range goods {
-				// 处理不同的整数类型（MySQL tinyint -> Go int8/uint8）
-				var s int
-				switch v := g["status"].(type) {
-				case int:
-					s = v
-				case int8:
-					s = int(v)
-				case uint8:
-					s = int(v)
-				case int32:
-					s = int(v)
-				case int64:
-					s = int(v)
-				case float64:
-					s = int(v)
-				default:
-					continue
-				}
-				if s == status {
-					filtered = append(filtered, g)
-				}
-			}
-			goods = filtered
-		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{"goods": goods})
