@@ -25,11 +25,31 @@ func toInt(v interface{}) (int, bool) {
 	switch val := v.(type) {
 	case float64:
 		return int(val), true
+	case float32:
+		return int(val), true
 	case string:
 		i, err := strconv.Atoi(strings.TrimSpace(val))
 		return i, err == nil
 	case int:
 		return val, true
+	case int8:
+		return int(val), true
+	case int16:
+		return int(val), true
+	case int32:
+		return int(val), true
+	case int64:
+		return int(val), true
+	case uint:
+		return int(val), true
+	case uint8:
+		return int(val), true
+	case uint16:
+		return int(val), true
+	case uint32:
+		return int(val), true
+	case uint64:
+		return int(val), true
 	default:
 		return 0, false
 	}
@@ -40,10 +60,30 @@ func toFloat64(v interface{}) (float64, bool) {
 	switch val := v.(type) {
 	case float64:
 		return val, true
+	case float32:
+		return float64(val), true
 	case string:
 		f, err := strconv.ParseFloat(strings.TrimSpace(val), 64)
 		return f, err == nil
 	case int:
+		return float64(val), true
+	case int8:
+		return float64(val), true
+	case int16:
+		return float64(val), true
+	case int32:
+		return float64(val), true
+	case int64:
+		return float64(val), true
+	case uint:
+		return float64(val), true
+	case uint8:
+		return float64(val), true
+	case uint16:
+		return float64(val), true
+	case uint32:
+		return float64(val), true
+	case uint64:
 		return float64(val), true
 	default:
 		return 0, false
@@ -159,7 +199,10 @@ func (s *GoodsService) UpdateGoods(id int, req *UpdateGoodsRequest) error {
 	}
 
 	// 读取当前isgroup值
-	isGroup, _ := toInt(current["isgroup"])
+	isGroup, ok := toInt(current["isgroup"])
+	if !ok {
+		return fmt.Errorf("商品数据格式错误")
+	}
 
 	// 转换并验证必填字段
 	name := req.Name

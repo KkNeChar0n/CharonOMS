@@ -2334,6 +2334,11 @@ createApp({
             if (!this.addOrderData.activity_ids || this.addOrderData.activity_ids.length === 0) {
                 this.addOrderData.discount_amount = 0;
                 this.childDiscounts = {};
+                // 重置商品优惠金额
+                this.selectedOrderGoods.forEach(goods => {
+                    goods.discount_amount = 0;
+                    goods.discounted_price = goods.price;
+                });
                 return;
             }
 
@@ -2357,6 +2362,13 @@ createApp({
 
                 this.addOrderData.discount_amount = response.data.total_discount;
                 this.childDiscounts = response.data.child_discounts;
+
+                // 更新每个商品的优惠金额和优惠后金额
+                this.selectedOrderGoods.forEach(goods => {
+                    const discount = this.childDiscounts[goods.goods_id] || 0;
+                    goods.discount_amount = discount;
+                    goods.discounted_price = goods.price - discount;
+                });
 
             } catch (err) {
                 console.error('计算优惠失败:', err);
@@ -2411,6 +2423,11 @@ createApp({
             if (!this.editOrderData.activity_ids || this.editOrderData.activity_ids.length === 0) {
                 this.editOrderData.discount_amount = 0;
                 this.editChildDiscounts = {};
+                // 重置商品优惠金额
+                this.editSelectedOrderGoods.forEach(goods => {
+                    goods.discount_amount = 0;
+                    goods.discounted_price = goods.price;
+                });
                 return;
             }
 
@@ -2434,6 +2451,13 @@ createApp({
 
                 this.editOrderData.discount_amount = response.data.total_discount;
                 this.editChildDiscounts = response.data.child_discounts;
+
+                // 更新每个商品的优惠金额和优惠后金额
+                this.editSelectedOrderGoods.forEach(goods => {
+                    const discount = this.editChildDiscounts[goods.goods_id] || 0;
+                    goods.discount_amount = discount;
+                    goods.discounted_price = goods.price - discount;
+                });
 
             } catch (err) {
                 console.error('计算优惠失败:', err);
@@ -2519,6 +2543,8 @@ createApp({
                 attributes: this.addOrderGoodsData.attributes,
                 price: parseFloat(this.addOrderGoodsData.price),
                 total_price: parseFloat(this.addOrderGoodsData.total_price),
+                discount_amount: 0,
+                discounted_price: parseFloat(this.addOrderGoodsData.price),
                 isgroup: this.addOrderGoodsData.isgroup
             });
             this.closeAddOrderGoodsModal();
@@ -2561,11 +2587,10 @@ createApp({
                     goods_list: goods_list
                 }, { withCredentials: true });
 
-                if (response.data.message === '订单创建成功') {
-                    await this.fetchOrders();
-                    this.closeAddOrderDrawer();
-                    alert('保存成功！');
-                }
+                // 创建成功，关闭弹窗并刷新列表
+                await this.fetchOrders();
+                this.closeAddOrderDrawer();
+                alert(response.data.message || '保存成功！');
             } catch (err) {
                 console.error('创建订单失败:', err);
                 alert(err.response?.data?.error || '创建订单失败');
@@ -2599,8 +2624,10 @@ createApp({
                     brand_name: g.brand_name || '',
                     classify_name: g.classify_name || '',
                     attributes: g.attributes || '',
-                    price: parseFloat(g.amount_received),
-                    total_price: parseFloat(g.amount_receivable),
+                    price: parseFloat(g.price),
+                    total_price: parseFloat(g.total_price),
+                    discount_amount: parseFloat(g.discount_amount || 0),
+                    discounted_price: parseFloat(g.discounted_price || g.price),
                     isgroup: g.isgroup
                 }));
             } catch (err) {
@@ -2735,6 +2762,8 @@ createApp({
                 attributes: this.editOrderGoodsData.attributes,
                 price: parseFloat(this.editOrderGoodsData.price),
                 total_price: parseFloat(this.editOrderGoodsData.total_price),
+                discount_amount: 0,
+                discounted_price: parseFloat(this.editOrderGoodsData.price),
                 isgroup: this.editOrderGoodsData.isgroup
             });
             this.closeEditOrderGoodsModal();
@@ -2769,11 +2798,10 @@ createApp({
                     child_discounts: this.editChildDiscounts
                 }, { withCredentials: true });
 
-                if (response.data.message === '订单更新成功') {
-                    await this.fetchOrders();
-                    this.closeEditOrderDrawer();
-                    alert('保存成功！');
-                }
+                // 更新成功，关闭弹窗并刷新列表
+                await this.fetchOrders();
+                this.closeEditOrderDrawer();
+                alert(response.data.message || '保存成功！');
             } catch (err) {
                 console.error('更新订单失败:', err);
                 alert(err.response?.data?.error || '更新订单失败');
@@ -2797,11 +2825,10 @@ createApp({
             try {
                 const response = await axios.put(`/api/orders/${this.cancelOrderId}/cancel`, {}, { withCredentials: true });
 
-                if (response.data.message === '订单已作废') {
-                    await this.fetchOrders();
-                    this.closeCancelOrderConfirm();
-                    alert('订单已作废');
-                }
+                // 作废成功，关闭弹窗并刷新列表
+                await this.fetchOrders();
+                this.closeCancelOrderConfirm();
+                alert(response.data.message || '订单已作废');
             } catch (err) {
                 console.error('作废订单失败:', err);
                 alert(err.response?.data?.error || '作废订单失败');
@@ -2818,12 +2845,11 @@ createApp({
             try {
                 const response = await axios.put(`/api/orders/${this.editOrderData.id}/submit`, {}, { withCredentials: true });
 
-                if (response.data.message === '订单已提交') {
-                    await this.fetchOrders();
-                    this.showSubmitOrderConfirm = false;
-                    this.closeEditOrderDrawer();
-                    alert('订单已提交');
-                }
+                // 提交成功，关闭弹窗并刷新列表
+                await this.fetchOrders();
+                this.showSubmitOrderConfirm = false;
+                this.closeEditOrderDrawer();
+                alert(response.data.message || '订单提交成功');
             } catch (err) {
                 console.error('提交订单失败:', err);
                 alert(err.response?.data?.error || '提交订单失败');

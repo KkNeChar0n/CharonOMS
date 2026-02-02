@@ -1,5 +1,7 @@
 package repository
 
+import "context"
+
 // GoodsRepository 商品仓储接口
 type GoodsRepository interface {
 	// GetList 获取商品列表（含品牌、分类、属性信息，支持按分类和状态过滤）
@@ -28,4 +30,10 @@ type GoodsRepository interface {
 
 	// UpdateStatus 更新商品状态
 	UpdateStatus(id int, status int) error
+
+	// GetActiveGoodsForOrder 获取启用商品列表（用于订单，带context）
+	GetActiveGoodsForOrder(ctx context.Context) ([]map[string]interface{}, error)
+
+	// GetGoodsTotalPrice 获取商品总价（用于订单，带context）
+	GetGoodsTotalPrice(ctx context.Context, goodsID int) (map[string]interface{}, error)
 }

@@ -129,19 +129,27 @@ func (h *ActivityHandler) GetActivitiesByDateRange(c *gin.Context) {
 	var paymentTime time.Time
 	var err error
 
-	// 尝试 RFC3339 格式
-	paymentTime, err = time.Parse(time.RFC3339, paymentTimeStr)
-	if err != nil {
-		// 尝试日期时间格式
-		paymentTime, err = time.Parse("2006-01-02 15:04:05", paymentTimeStr)
-		if err != nil {
-			// 尝试日期格式
-			paymentTime, err = time.Parse("2006-01-02", paymentTimeStr)
-			if err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payment_time format"})
-				return
-			}
+	// 支持的时间格式列表
+	formats := []string{
+		time.RFC3339,                   // 2006-01-02T15:04:05Z07:00
+		"2006-01-02T15:04:05",          // ISO8601 without timezone
+		"2006-01-02T15:04",             // ISO8601 without seconds
+		"2006-01-02 15:04:05",          // MySQL datetime
+		"2006-01-02 15:04",             // datetime without seconds
+		"2006-01-02",                   // date only
+		time.RFC3339Nano,               // with nanoseconds
+	}
+
+	for _, format := range formats {
+		paymentTime, err = time.Parse(format, paymentTimeStr)
+		if err == nil {
+			break
 		}
+	}
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payment_time format"})
+		return
 	}
 
 	result, err := h.service.GetActivitiesByDateRange(c.Request.Context(), paymentTime)

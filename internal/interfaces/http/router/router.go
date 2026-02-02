@@ -12,6 +12,7 @@ import (
 	goodsService "charonoms/internal/application/service/goods"
 	rbacService "charonoms/internal/application/service/rbac"
 	studentService "charonoms/internal/application/service/student"
+	orderService "charonoms/internal/application/order"
 	activityService "charonoms/internal/application/activity"
 	activityTemplateService "charonoms/internal/application/activity_template"
 	approvalService "charonoms/internal/application/service/approval"
@@ -28,6 +29,7 @@ import (
 	goodsImpl "charonoms/internal/infrastructure/persistence/mysql/goods"
 	rbacImpl "charonoms/internal/infrastructure/persistence/mysql/rbac"
 	studentImpl "charonoms/internal/infrastructure/persistence/mysql/student"
+	orderImpl "charonoms/internal/infrastructure/persistence/order"
 	"charonoms/internal/infrastructure/persistence/mysql"
 	"charonoms/internal/interfaces/http/handler/account"
 	"charonoms/internal/interfaces/http/handler/approval"
@@ -129,6 +131,12 @@ func setupDependencies(r *gin.Engine, cfg *config.Config) {
 	goodsRepo := goodsImpl.NewGoodsRepository(mysql.DB)
 	goodsSvc := goodsService.NewGoodsService(goodsRepo)
 	goodsHdl := goods.NewGoodsHandler(goodsSvc)
+
+	// Order module
+	orderRepo := orderImpl.NewOrderRepository(mysql.DB)
+	childOrderRepo := orderImpl.NewChildOrderRepository(mysql.DB)
+	orderSvc := orderService.NewService(orderRepo, childOrderRepo, goodsRepo, mysql.DB)
+	orderHdl := handler.NewOrderHandler(orderSvc)
 
 	// Activity Template module
 	activityTemplateRepo := persistence.NewActivityTemplateRepository(mysql.DB)
@@ -245,9 +253,22 @@ func setupDependencies(r *gin.Engine, cfg *config.Config) {
 				coaches.DELETE("/:id", coachHdl.DeleteCoach)
 			}
 
-			// Order Management - Placeholder routes
-			authorized.GET("/orders", placeholderHdl.HandlePlaceholder)
-			authorized.GET("/childorders", placeholderHdl.HandlePlaceholder)
+			// Order Management
+			orders := authorized.Group("/orders")
+			{
+				orders.GET("", orderHdl.GetOrders)
+				orders.POST("", orderHdl.CreateOrder)
+				orders.GET("/:id/goods", orderHdl.GetOrderGoods)
+				orders.PUT("/:id", orderHdl.UpdateOrder)
+				orders.PUT("/:id/submit", orderHdl.SubmitOrder)
+				orders.PUT("/:id/cancel", orderHdl.CancelOrder)
+				orders.POST("/calculate-discount", orderHdl.CalculateOrderDiscount)
+			}
+
+			// Child Order Management
+			authorized.GET("/childorders", orderHdl.GetChildOrders)
+
+			// Refund Management - Placeholder routes (to be implemented)
 			authorized.GET("/refund_orders", placeholderHdl.HandlePlaceholder)
 			authorized.GET("/refund_childorders", placeholderHdl.HandlePlaceholder)
 
@@ -288,12 +309,12 @@ func setupDependencies(r *gin.Engine, cfg *config.Config) {
 			goods := authorized.Group("/goods")
 			{
 				goods.GET("", goodsHdl.GetGoods)
-				goods.GET("/active-for-order", goodsHdl.GetActiveForOrder)
+				goods.GET("/active-for-order", orderHdl.GetActiveGoodsForOrder)
 				goods.GET("/available-for-combo", goodsHdl.GetAvailableForCombo)
 				goods.POST("", goodsHdl.CreateGoods)
 				goods.GET("/:id", goodsHdl.GetGoodsByID)
 				goods.GET("/:id/included-goods", goodsHdl.GetIncludedGoods)
-				goods.GET("/:id/total-price", goodsHdl.GetTotalPrice)
+				goods.GET("/:id/total-price", orderHdl.GetGoodsTotalPrice)
 				goods.PUT("/:id", goodsHdl.UpdateGoods)
 				goods.PUT("/:id/status", goodsHdl.UpdateStatus)
 			}

@@ -1,6 +1,7 @@
 package goods
 
 import (
+	"context"
 	"fmt"
 
 	"charonoms/internal/domain/goods/entity"
@@ -430,4 +431,86 @@ func (r *GoodsRepositoryImpl) UpdateStatus(id int, status int) error {
 	}
 
 	return nil
+}
+
+// GetActiveGoodsForOrder 获取启用商品列表（用于订单，带context）
+func (r *GoodsRepositoryImpl) GetActiveGoodsForOrder(ctx context.Context) ([]map[string]interface{}, error) {
+	var results []map[string]interface{}
+
+	query := `
+		SELECT
+			g.id,
+			g.name,
+			g.brandid,
+			b.name as brand_name,
+			g.classifyid,
+			c.name as classify_name,
+			g.isgroup,
+			g.price,
+			CASE
+				WHEN g.isgroup = 1 THEN g.price
+				ELSE COALESCE((
+					SELECT SUM(child.price)
+					FROM goods_goods gg
+					INNER JOIN goods child ON gg.goodsid = child.id
+					WHERE gg.parentsid = g.id
+				), 0)
+			END as total_price,
+			GROUP_CONCAT(
+				CONCAT(a.name, ':', av.name)
+				ORDER BY a.name SEPARATOR ','
+			) as attributes
+		FROM goods g
+		LEFT JOIN brand b ON g.brandid = b.id
+		LEFT JOIN classify c ON g.classifyid = c.id
+		LEFT JOIN goods_attributevalue gav ON g.id = gav.goodsid
+		LEFT JOIN attribute_value av ON gav.attributevalueid = av.id
+		LEFT JOIN attribute a ON av.attributeid = a.id
+		WHERE g.status = 0
+		GROUP BY g.id
+		ORDER BY g.id DESC
+	`
+
+	if err := r.db.WithContext(ctx).Raw(query).Scan(&results).Error; err != nil {
+		return nil, fmt.Errorf("failed to get active goods for order: %w", err)
+	}
+
+	if results == nil {
+		results = []map[string]interface{}{}
+	}
+
+	return results, nil
+}
+
+// GetGoodsTotalPrice 获取商品总价（用于订单，带context）
+func (r *GoodsRepositoryImpl) GetGoodsTotalPrice(ctx context.Context, goodsID int) (map[string]interface{}, error) {
+	var result map[string]interface{}
+
+	query := `
+		SELECT
+			g.id as goods_id,
+			g.price,
+			CASE
+				WHEN g.isgroup = 1 THEN g.price
+				ELSE COALESCE((
+					SELECT SUM(child.price)
+					FROM goods_goods gg
+					INNER JOIN goods child ON gg.goodsid = child.id
+					WHERE gg.parentsid = g.id
+				), 0)
+			END as total_price,
+			g.isgroup
+		FROM goods g
+		WHERE g.id = ?
+	`
+
+	if err := r.db.WithContext(ctx).Raw(query, goodsID).Scan(&result).Error; err != nil {
+		return nil, fmt.Errorf("failed to get goods total price: %w", err)
+	}
+
+	if result == nil || len(result) == 0 {
+		return nil, fmt.Errorf("goods not found")
+	}
+
+	return result, nil
 }
