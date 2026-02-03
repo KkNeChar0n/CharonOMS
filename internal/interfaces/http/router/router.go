@@ -16,8 +16,11 @@ import (
 	activityService "charonoms/internal/application/activity"
 	activityTemplateService "charonoms/internal/application/activity_template"
 	approvalService "charonoms/internal/application/service/approval"
+	paymentAppService "charonoms/internal/application/financial/payment"
+	separateAppService "charonoms/internal/application/financial/separate"
 	"charonoms/internal/infrastructure/config"
 	"charonoms/internal/infrastructure/persistence"
+	financialImpl "charonoms/internal/infrastructure/persistence/financial"
 	approvalImpl "charonoms/internal/infrastructure/persistence/approval"
 	accountImpl "charonoms/internal/infrastructure/persistence/mysql/account"
 	attributeImpl "charonoms/internal/infrastructure/persistence/mysql/attribute"
@@ -45,8 +48,11 @@ import (
 	"charonoms/internal/interfaces/http/handler/rbac"
 	"charonoms/internal/interfaces/http/handler/student"
 	"charonoms/internal/interfaces/http/handler"
+	financialHandler "charonoms/internal/interfaces/http/financial"
 	"charonoms/internal/interfaces/http/middleware"
 	approvalDomainService "charonoms/internal/domain/approval/service"
+	paymentDomainService "charonoms/internal/domain/financial/payment"
+	separateDomainService "charonoms/internal/domain/financial/separate"
 
 	"github.com/gin-gonic/gin"
 )
@@ -158,6 +164,16 @@ func setupDependencies(r *gin.Engine, cfg *config.Config) {
 	approvalTemplateSvc := approvalService.NewApprovalFlowTemplateService(approvalTemplateRepo, approvalTypeRepo)
 	approvalMgmtSvc := approvalService.NewApprovalFlowManagementService(approvalMgmtRepo, approvalNodeRepo, approvalDomainSvc)
 	approvalHdl := approval.NewApprovalHandler(approvalTypeSvc, approvalTemplateSvc, approvalMgmtSvc)
+
+	// Financial module
+	paymentRepo := financialImpl.NewPaymentRepository(mysql.DB)
+	separateRepo := financialImpl.NewSeparateAccountRepository(mysql.DB)
+	paymentDomainSvc := paymentDomainService.NewPaymentDomainService(paymentRepo, orderRepo, childOrderRepo)
+	separateDomainSvc := separateDomainService.NewSeparateAccountDomainService(separateRepo, paymentRepo, childOrderRepo)
+	paymentAppSvc := paymentAppService.NewPaymentApplicationService(mysql.DB, paymentRepo, studentRepo, paymentDomainSvc, separateDomainSvc)
+	separateAppSvc := separateAppService.NewSeparateAccountApplicationService(separateRepo)
+	paymentHdl := financialHandler.NewPaymentHandler(paymentAppSvc)
+	separateHdl := financialHandler.NewSeparateAccountHandler(separateAppSvc)
 
 	// Placeholder handler for unimplemented features
 	placeholderHdl := placeholder.NewPlaceholderHandler()
@@ -397,7 +413,23 @@ func setupDependencies(r *gin.Engine, cfg *config.Config) {
 			// Contract Management - menu placeholder
 			authorized.GET("/contract_management", placeholderHdl.HandlePlaceholder)
 
-			// Finance Management - Placeholder routes
+			// Finance Management
+			// Payment Collection Management
+			paymentCollections := authorized.Group("/payment-collections")
+			{
+				paymentCollections.GET("", paymentHdl.GetPaymentCollections)
+				paymentCollections.POST("", paymentHdl.CreatePaymentCollection)
+				paymentCollections.PUT("/:id/confirm", paymentHdl.ConfirmPaymentCollection)
+				paymentCollections.DELETE("/:id", paymentHdl.DeletePaymentCollection)
+			}
+
+			// Separate Account Management
+			separateAccounts := authorized.Group("/separate-accounts")
+			{
+				separateAccounts.GET("", separateHdl.GetSeparateAccounts)
+			}
+
+			// Finance Management - Menu placeholders
 			authorized.GET("/payment_collection", placeholderHdl.HandlePlaceholder)
 			authorized.GET("/separate_account", placeholderHdl.HandlePlaceholder)
 			authorized.GET("/refund_management", placeholderHdl.HandlePlaceholder)
