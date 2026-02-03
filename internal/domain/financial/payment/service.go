@@ -100,3 +100,16 @@ func (s *PaymentDomainService) UpdateOrderPaymentStatus(orderID int) error {
 
 	return nil
 }
+
+// GetOrder 获取订单信息
+func (s *PaymentDomainService) GetOrder(orderID int) (*orderEntity.Order, error) {
+	ctx := context.Background()
+	order, err := s.orderRepo.GetOrderByID(ctx, orderID)
+	if err != nil {
+		return nil, err
+	}
+	if order == nil {
+		return nil, errors.New("订单不存在")
+	}
+	return order, nil
+}

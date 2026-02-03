@@ -7,6 +7,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"charonoms/internal/domain/financial/payment"
 	"charonoms/internal/domain/goods/repository"
 	"charonoms/internal/domain/order/entity"
 	orderRepo "charonoms/internal/domain/order/repository"
@@ -18,6 +19,7 @@ type Service struct {
 	orderRepo       orderRepo.OrderRepository
 	childOrderRepo  orderRepo.ChildOrderRepository
 	goodsRepo       repository.GoodsRepository
+	paymentRepo     payment.PaymentRepository
 	orderService    *service.OrderService
 	discountService *service.DiscountService
 	db              *gorm.DB
@@ -28,12 +30,14 @@ func NewService(
 	orderRepo orderRepo.OrderRepository,
 	childOrderRepo orderRepo.ChildOrderRepository,
 	goodsRepo repository.GoodsRepository,
+	paymentRepo payment.PaymentRepository,
 	db *gorm.DB,
 ) *Service {
 	return &Service{
 		orderRepo:       orderRepo,
 		childOrderRepo:  childOrderRepo,
 		goodsRepo:       goodsRepo,
+		paymentRepo:     paymentRepo,
 		orderService:    service.NewOrderService(),
 		discountService: service.NewDiscountService(db),
 		db:              db,
@@ -279,4 +283,33 @@ func (s *Service) CalculateOrderDiscount(ctx context.Context, goodsList []GoodsI
 
 	// 调用领域服务计算优惠
 	return s.discountService.CalculateDiscount(ctx, goodsForDiscount, activityIDs)
+}
+
+// GetUnpaidOrdersByStudentID 获取学生的未付款订单列表
+func (s *Service) GetUnpaidOrdersByStudentID(ctx context.Context, studentID int) ([]*entity.Order, error) {
+	return s.orderRepo.GetUnpaidOrdersByStudentID(ctx, studentID)
+}
+
+// GetOrderPendingAmount 获取订单待付金额
+func (s *Service) GetOrderPendingAmount(ctx context.Context, orderID int) (float64, error) {
+	// 获取订单信息
+	order, err := s.orderRepo.GetOrderByID(ctx, orderID)
+	if err != nil {
+		return 0, err
+	}
+
+	// 获取已付金额
+	paidAmount, err := s.paymentRepo.GetTotalPaidAmount(orderID)
+	if err != nil {
+		return 0, err
+	}
+
+	// 计算待付金额 = 实收金额 - 已付金额
+	// 注意：使用 AmountReceived（实收金额），因为这是用户实际需要支付的金额（已扣除优惠）
+	pendingAmount := order.AmountReceived - paidAmount
+	if pendingAmount < 0 {
+		pendingAmount = 0
+	}
+
+	return pendingAmount, nil
 }

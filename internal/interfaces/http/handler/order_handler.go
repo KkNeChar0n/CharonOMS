@@ -334,3 +334,58 @@ func (h *OrderHandler) CalculateOrderDiscount(c *gin.Context) {
 		"child_discounts": childDiscounts,
 	})
 }
+
+// GetStudentUnpaidOrders 获取学生的未付款订单列表
+// GET /api/students/:id/unpaid-orders
+func (h *OrderHandler) GetStudentUnpaidOrders(c *gin.Context) {
+	studentID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid student id"})
+		return
+	}
+
+	orders, err := h.service.GetUnpaidOrdersByStudentID(c.Request.Context(), studentID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 转换为响应格式
+	result := make([]gin.H, 0, len(orders))
+	for _, order := range orders {
+		result = append(result, gin.H{
+			"id":                    order.ID,
+			"student_id":            order.StudentID,
+			"expected_payment_time": order.ExpectedPaymentTime,
+			"amount_receivable":     order.AmountReceivable,
+			"amount_received":       order.AmountReceived,
+			"discount_amount":       order.DiscountAmount,
+			"status":                order.Status,
+			"create_time":           order.CreateTime,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"orders": result,
+	})
+}
+
+// GetOrderPendingAmount 获取订单待付金额
+// GET /api/orders/:id/pending-amount
+func (h *OrderHandler) GetOrderPendingAmount(c *gin.Context) {
+	orderID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid order id"})
+		return
+	}
+
+	pendingAmount, err := h.service.GetOrderPendingAmount(c.Request.Context(), orderID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"pending_amount": pendingAmount,
+	})
+}

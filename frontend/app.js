@@ -6839,10 +6839,13 @@ createApp({
             this.loadingPaymentCollections = true;
             try {
                 const response = await axios.get('/api/payment-collections');
-                this.paymentCollections = response.data.collections;
+                // 使用标准响应格式: response.data.data.collections
+                this.paymentCollections = response.data.data?.collections || [];
                 this.filteredPaymentCollections = this.paymentCollections;
             } catch (err) {
                 console.error('获取收款数据失败:', err);
+                this.paymentCollections = [];
+                this.filteredPaymentCollections = [];
             } finally {
                 this.loadingPaymentCollections = false;
             }
@@ -7055,6 +7058,19 @@ createApp({
             }
 
             try {
+                // 处理交易时间格式：将 YYYY-MM-DD 转换为 ISO 8601 格式
+                let tradingHours = null;
+                if (this.paymentCollectionForm.trading_hours) {
+                    // 如果只是日期格式（YYYY-MM-DD），转换为完整时间格式
+                    const dateStr = this.paymentCollectionForm.trading_hours;
+                    if (dateStr.length === 10) {
+                        // 添加时间部分，使用 00:00:00
+                        tradingHours = dateStr + 'T00:00:00Z';
+                    } else {
+                        tradingHours = dateStr;
+                    }
+                }
+
                 const payload = {
                     student_id: parseInt(this.paymentCollectionForm.student_id),
                     order_id: parseInt(this.paymentCollectionForm.order_id),
@@ -7064,16 +7080,20 @@ createApp({
                     payer: this.paymentCollectionForm.payer,
                     payee_entity: parseInt(this.paymentCollectionForm.payee_entity),
                     merchant_order: this.paymentCollectionForm.merchant_order || null,
-                    trading_hours: this.paymentCollectionForm.trading_hours || null
+                    trading_hours: tradingHours
                 };
 
-                await axios.post('/api/payment-collections', payload);
-                alert('收款新增成功');
-                this.closeAddPaymentCollectionModal();
-                await this.fetchPaymentCollections();
+                const response = await axios.post('/api/payment-collections', payload);
+                if (response.data.code === 0) {
+                    alert('收款新增成功');
+                    this.closeAddPaymentCollectionModal();
+                    await this.fetchPaymentCollections();
+                } else {
+                    alert(response.data.message || '新增收款失败');
+                }
             } catch (err) {
                 console.error('新增收款失败:', err);
-                alert(err.response?.data?.error || '新增收款失败');
+                alert(err.response?.data?.message || err.response?.data?.error || '新增收款失败');
             }
         },
 
@@ -7616,11 +7636,13 @@ createApp({
                 if (this.separateAccountFilters.type !== '') params.append('type', this.separateAccountFilters.type);
 
                 const response = await axios.get(`/api/separate-accounts?${params.toString()}`);
-                this.separateAccounts = response.data.separate_accounts || [];
+                // 使用标准响应格式: response.data.data.separate_accounts
+                this.separateAccounts = response.data.data?.separate_accounts || [];
                 this.filteredSeparateAccounts = this.separateAccounts;
             } catch (err) {
                 console.error('获取分账明细失败:', err);
-                alert(err.response?.data?.error || '获取分账明细失败');
+                this.separateAccounts = [];
+                this.filteredSeparateAccounts = [];
             } finally {
                 this.loadingSeparateAccounts = false;
             }

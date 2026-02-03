@@ -30,4 +30,7 @@ type OrderRepository interface {
 
 	// DeleteOrderActivities 删除订单的所有活动关联
 	DeleteOrderActivities(ctx context.Context, orderID int) error
+
+	// GetUnpaidOrdersByStudentID 获取学生的未付款订单列表
+	GetUnpaidOrdersByStudentID(ctx context.Context, studentID int) ([]*entity.Order, error)
 }

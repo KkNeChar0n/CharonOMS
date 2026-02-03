@@ -99,6 +99,24 @@ func (s *PaymentApplicationService) CreatePaymentCollection(req *financial.Creat
 		return 0, err
 	}
 
+	// 验证付款时间：如果填写了交易时间，需要与订单预计付款时间一致
+	if req.TradingHours != nil {
+		order, err := s.paymentDomainService.GetOrder(req.OrderID)
+		if err != nil {
+			return 0, errors.New("获取订单信息失败: " + err.Error())
+		}
+
+		if order.ExpectedPaymentTime != nil {
+			// 比较日期部分（忽略时分秒）
+			tradingDate := req.TradingHours.Format("2006-01-02")
+			expectedDate := order.ExpectedPaymentTime.Format("2006-01-02")
+
+			if tradingDate != expectedDate {
+				return 0, errors.New("付款时间与订单预计付款时间不符，请重新填写")
+			}
+		}
+	}
+
 	// 转换为实体
 	paymentEntity := ToPaymentCollectionEntity(req)
 

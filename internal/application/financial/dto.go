@@ -26,11 +26,11 @@ type PaymentCollectionDTO struct {
 type CreatePaymentCollectionRequest struct {
 	OrderID         int        `json:"order_id" binding:"required"`
 	StudentID       int        `json:"student_id" binding:"required"`
-	PaymentScenario int        `json:"payment_scenario" binding:"required"`
-	PaymentMethod   int        `json:"payment_method" binding:"required"`
+	PaymentScenario int        `json:"payment_scenario" binding:"min=0"`
+	PaymentMethod   int        `json:"payment_method" binding:"min=0"`
 	PaymentAmount   float64    `json:"payment_amount" binding:"required,gt=0"`
 	Payer           string     `json:"payer"`
-	PayeeEntity     int        `json:"payee_entity" binding:"required"`
+	PayeeEntity     int        `json:"payee_entity" binding:"min=0"`
 	MerchantOrder   string     `json:"merchant_order"`
 	TradingHours    *time.Time `json:"trading_hours"`
 }

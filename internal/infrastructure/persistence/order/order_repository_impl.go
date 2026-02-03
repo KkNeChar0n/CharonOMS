@@ -287,3 +287,36 @@ func (r *GormOrderRepository) DeleteOrderChildOrders(ctx context.Context, orderI
 func (r *GormOrderRepository) DeleteOrderActivities(ctx context.Context, orderID int) error {
 	return r.db.WithContext(ctx).Where("orders_id = ?", orderID).Delete(&OrdersActivityDO{}).Error
 }
+
+// GetUnpaidOrdersByStudentID 获取学生的未付款订单列表
+func (r *GormOrderRepository) GetUnpaidOrdersByStudentID(ctx context.Context, studentID int) ([]*entity.Order, error) {
+	var orders []OrderDO
+
+	// 查询未付清的订单：状态为未支付(20)或部分支付(30)
+	err := r.db.WithContext(ctx).
+		Where("student_id = ?", studentID).
+		Where("status IN (?, ?)", entity.OrderStatusUnpaid, entity.OrderStatusPartialPaid).
+		Order("create_time DESC").
+		Find(&orders).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	// 转换为领域实体
+	result := make([]*entity.Order, 0, len(orders))
+	for _, do := range orders {
+		result = append(result, &entity.Order{
+			ID:                  do.ID,
+			StudentID:           do.StudentID,
+			ExpectedPaymentTime: do.ExpectedPaymentTime,
+			AmountReceivable:    do.AmountReceivable,
+			AmountReceived:      do.AmountReceived,
+			DiscountAmount:      do.DiscountAmount,
+			Status:              do.Status,
+			CreateTime:          do.CreateTime,
+		})
+	}
+
+	return result, nil
+}

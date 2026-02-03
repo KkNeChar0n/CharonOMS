@@ -138,10 +138,14 @@ func setupDependencies(r *gin.Engine, cfg *config.Config) {
 	goodsSvc := goodsService.NewGoodsService(goodsRepo)
 	goodsHdl := goods.NewGoodsHandler(goodsSvc)
 
+	// Financial repositories (need to initialize before order module)
+	paymentRepo := financialImpl.NewPaymentRepository(mysql.DB)
+	separateRepo := financialImpl.NewSeparateAccountRepository(mysql.DB)
+
 	// Order module
 	orderRepo := orderImpl.NewOrderRepository(mysql.DB)
 	childOrderRepo := orderImpl.NewChildOrderRepository(mysql.DB)
-	orderSvc := orderService.NewService(orderRepo, childOrderRepo, goodsRepo, mysql.DB)
+	orderSvc := orderService.NewService(orderRepo, childOrderRepo, goodsRepo, paymentRepo, mysql.DB)
 	orderHdl := handler.NewOrderHandler(orderSvc)
 
 	// Activity Template module
@@ -165,9 +169,7 @@ func setupDependencies(r *gin.Engine, cfg *config.Config) {
 	approvalMgmtSvc := approvalService.NewApprovalFlowManagementService(approvalMgmtRepo, approvalNodeRepo, approvalDomainSvc)
 	approvalHdl := approval.NewApprovalHandler(approvalTypeSvc, approvalTemplateSvc, approvalMgmtSvc)
 
-	// Financial module
-	paymentRepo := financialImpl.NewPaymentRepository(mysql.DB)
-	separateRepo := financialImpl.NewSeparateAccountRepository(mysql.DB)
+	// Financial module (repositories initialized earlier for order module dependency)
 	paymentDomainSvc := paymentDomainService.NewPaymentDomainService(paymentRepo, orderRepo, childOrderRepo)
 	separateDomainSvc := separateDomainService.NewSeparateAccountDomainService(separateRepo, paymentRepo, childOrderRepo)
 	paymentAppSvc := paymentAppService.NewPaymentApplicationService(mysql.DB, paymentRepo, studentRepo, paymentDomainSvc, separateDomainSvc)
@@ -252,6 +254,7 @@ func setupDependencies(r *gin.Engine, cfg *config.Config) {
 			{
 				students.GET("/active", studentHdl.GetActiveStudents) // Must be before /:id
 				students.GET("", studentHdl.GetStudents)
+				students.GET("/:id/unpaid-orders", orderHdl.GetStudentUnpaidOrders)
 				students.POST("", studentHdl.CreateStudent)
 				students.PUT("/:id", studentHdl.UpdateStudent)
 				students.PUT("/:id/status", studentHdl.UpdateStudentStatus)
@@ -275,6 +278,7 @@ func setupDependencies(r *gin.Engine, cfg *config.Config) {
 				orders.GET("", orderHdl.GetOrders)
 				orders.POST("", orderHdl.CreateOrder)
 				orders.GET("/:id/goods", orderHdl.GetOrderGoods)
+				orders.GET("/:id/pending-amount", orderHdl.GetOrderPendingAmount)
 				orders.PUT("/:id", orderHdl.UpdateOrder)
 				orders.PUT("/:id/submit", orderHdl.SubmitOrder)
 				orders.PUT("/:id/cancel", orderHdl.CancelOrder)
