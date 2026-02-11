@@ -62,3 +62,11 @@ simple_*.ps1
 *.db
 *.sqlite
 *.sqlite3
+
+# Test and temporary files (in root directory)
+/cookie.txt
+/menu_*.json
+/menu_*.txt
+/*_backup*.sql
+/nohup.out
+/test_*.sh
