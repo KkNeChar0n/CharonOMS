@@ -19,12 +19,19 @@ func NewPermissionRepository(db *gorm.DB) repository.PermissionRepository {
 }
 
 // List 获取权限列表
-func (r *PermissionRepositoryImpl) List(ctx context.Context) ([]*entity.Permission, error) {
+func (r *PermissionRepositoryImpl) List(ctx context.Context, filters map[string]interface{}) ([]*entity.Permission, error) {
 	var permissions []*entity.Permission
-	err := r.db.WithContext(ctx).
-		Preload("Menu").
-		Order("id ASC").
-		Find(&permissions).Error
+	query := r.db.WithContext(ctx).Preload("Menu")
+
+	// 应用筛选条件
+	if id, ok := filters["id"]; ok && id != "" {
+		query = query.Where("id = ?", id)
+	}
+	if menuID, ok := filters["menu_id"]; ok && menuID != "" {
+		query = query.Where("menu_id = ?", menuID)
+	}
+
+	err := query.Order("id ASC").Find(&permissions).Error
 	if err != nil {
 		return nil, err
 	}

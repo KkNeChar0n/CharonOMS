@@ -389,3 +389,47 @@ func (h *OrderHandler) GetOrderPendingAmount(c *gin.Context) {
 		"pending_amount": pendingAmount,
 	})
 }
+
+// GetOrderRefundInfo 获取订单退费信息
+func (h *OrderHandler) GetOrderRefundInfo(c *gin.Context) {
+	orderIDStr := c.Param("id")
+	orderID, err := strconv.Atoi(orderIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid order ID"})
+		return
+	}
+
+	refundInfo, err := h.service.GetOrderRefundInfo(c.Request.Context(), orderID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, refundInfo)
+}
+
+// GetRefundPayments 获取退费收款列表
+func (h *OrderHandler) GetRefundPayments(c *gin.Context) {
+	orderIDStr := c.Param("id")
+	orderID, err := strconv.Atoi(orderIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid order ID"})
+		return
+	}
+
+	var req struct {
+		RefundItems []map[string]interface{} `json:"refund_items"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	result, err := h.service.GetRefundPayments(c.Request.Context(), orderID, req.RefundItems)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
+}

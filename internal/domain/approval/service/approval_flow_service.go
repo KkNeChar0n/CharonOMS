@@ -213,6 +213,8 @@ func (s *ApprovalFlowService) isOrSignNodeRejected(nodeUsers []entity.ApprovalNo
 
 // handleApprovalComplete 处理审批流完成后的回调
 func (s *ApprovalFlowService) handleApprovalComplete(flowID int, approved bool) error {
+	fmt.Printf("[DEBUG] handleApprovalComplete调用: flowID=%d, approved=%v\n", flowID, approved)
+
 	// 1. 获取审批流信息和类型名称
 	var flowInfo struct {
 		ID                 int
@@ -227,6 +229,8 @@ func (s *ApprovalFlowService) handleApprovalComplete(flowID int, approved bool) 
 		return fmt.Errorf("查询审批流信息失败: %w", err)
 	}
 
+	fmt.Printf("[DEBUG] 审批流信息: ID=%d, CreateTime=%s, TypeID=%d\n", flowInfo.ID, flowInfo.CreateTime, flowInfo.ApprovalFlowTypeID)
+
 	// 2. 获取审批流类型名称
 	var flowTypeName string
 	err = s.db.Table("approval_flow_type").
@@ -237,16 +241,22 @@ func (s *ApprovalFlowService) handleApprovalComplete(flowID int, approved bool) 
 		return fmt.Errorf("查询审批流类型失败: %w", err)
 	}
 
+	fmt.Printf("[DEBUG] 审批流类型名称: %s\n", flowTypeName)
+
 	// 3. 如果是"退费"类型，处理退费逻辑
 	if flowTypeName == "退费" {
+		fmt.Println("[DEBUG] 匹配到退费类型，开始处理退费逻辑")
 		return s.handleRefundApproval(flowInfo.CreateTime, approved)
 	}
 
+	fmt.Println("[DEBUG] 非退费类型，跳过处理")
 	return nil
 }
 
 // handleRefundApproval 处理退费审批完成
 func (s *ApprovalFlowService) handleRefundApproval(createTime string, approved bool) error {
+	fmt.Printf("[DEBUG] handleRefundApproval调用: createTime=%s, approved=%v\n", createTime, approved)
+
 	// 1. 根据时间范围查询退费订单（前后5秒范围）
 	var refundOrder struct {
 		ID      int `gorm:"column:id"`
@@ -264,63 +274,86 @@ func (s *ApprovalFlowService) handleRefundApproval(createTime string, approved b
 		return fmt.Errorf("查询退费订单失败: %w", err)
 	}
 
+	fmt.Printf("[DEBUG] 查询到退费订单: ID=%d, OrderID=%d\n", refundOrder.ID, refundOrder.OrderID)
+
 	if refundOrder.ID == 0 {
 		// 未找到关联的退费订单，可能不是退费审批流
+		fmt.Println("[DEBUG] 未找到关联的退费订单，跳过处理")
 		return nil
 	}
 
 	if approved {
 		// 审批通过：调用退费处理逻辑
+		fmt.Println("[DEBUG] 审批通过，开始处理退费逻辑")
 		return s.processRefundApproval(refundOrder.ID, refundOrder.OrderID)
 	} else {
 		// 审批驳回：更新退费订单状态为已驳回(20)，订单状态恢复为部分支付(30)
+		fmt.Println("[DEBUG] 审批驳回，开始处理驳回逻辑")
 		return s.processRefundRejection(refundOrder.ID, refundOrder.OrderID)
 	}
 }
 
 // processRefundApproval 处理退费审批通过
 func (s *ApprovalFlowService) processRefundApproval(refundOrderID int, orderID int) error {
+	fmt.Printf("[DEBUG] processRefundApproval调用: refundOrderID=%d, orderID=%d\n", refundOrderID, orderID)
+
 	// TODO: 使用依赖注入将RefundDomainService注入到ApprovalFlowService中
 	// 当前为避免循环依赖，暂时直接在这里实现退费处理逻辑
 	// 完整实现需要调用 refundDomainService.ProcessRefundApproval(refundOrderID)
 
 	return s.db.Transaction(func(tx *gorm.DB) error {
+		fmt.Println("[DEBUG] 开始事务处理")
+
 		// 1. 查询退费订单获取学生ID
 		var studentID int
 		if err := tx.Table("refund_order").
 			Select("student_id").
 			Where("id = ?", refundOrderID).
 			Scan(&studentID).Error; err != nil {
+			fmt.Printf("[ERROR] 查询学生ID失败: %v\n", err)
 			return err
 		}
+		fmt.Printf("[DEBUG] 查询到学生ID: %d\n", studentID)
 
 		// 2. 更新退费订单状态为已通过(10)
-		if err := tx.Table("refund_order").
+		result := tx.Table("refund_order").
 			Where("id = ?", refundOrderID).
-			Update("status", 10).Error; err != nil {
-			return err
+			Update("status", 10)
+		if result.Error != nil {
+			fmt.Printf("[ERROR] 更新退费订单状态失败: %v\n", result.Error)
+			return result.Error
 		}
+		fmt.Printf("[DEBUG] 更新退费订单状态成功，影响行数: %d\n", result.RowsAffected)
 
 		// 2.1 更新退费子订单状态为已通过(10)
-		if err := tx.Table("refund_order_item").
+		result = tx.Table("refund_order_item").
 			Where("refund_order_id = ?", refundOrderID).
-			Update("status", 10).Error; err != nil {
-			return err
+			Update("status", 10)
+		if result.Error != nil {
+			fmt.Printf("[ERROR] 更新退费子订单状态失败: %v\n", result.Error)
+			return result.Error
 		}
+		fmt.Printf("[DEBUG] 更新退费子订单状态成功，影响行数: %d\n", result.RowsAffected)
 
 		// 2.2 更新淘宝退费补充信息状态为已通过(10)
-		if err := tx.Table("refund_taobao_supplement").
+		result = tx.Table("refund_taobao_supplement").
 			Where("refund_order_id = ?", refundOrderID).
-			Update("status", 10).Error; err != nil {
-			return err
+			Update("status", 10)
+		if result.Error != nil {
+			fmt.Printf("[ERROR] 更新淘宝退费补充信息状态失败: %v\n", result.Error)
+			return result.Error
 		}
+		fmt.Printf("[DEBUG] 更新淘宝退费补充信息状态成功，影响行数: %d\n", result.RowsAffected)
 
 		// 2.3 更新常规退费补充信息状态为已通过(10)
-		if err := tx.Table("refund_regular_supplement").
+		result = tx.Table("refund_regular_supplement").
 			Where("refund_order_id = ?", refundOrderID).
-			Update("status", 10).Error; err != nil {
-			return err
+			Update("status", 10)
+		if result.Error != nil {
+			fmt.Printf("[ERROR] 更新常规退费补充信息状态失败: %v\n", result.Error)
+			return result.Error
 		}
+		fmt.Printf("[DEBUG] 更新常规退费补充信息状态成功，影响行数: %d\n", result.RowsAffected)
 
 		// 3. 执行退费冲回和重分账逻辑（按照Python版本实现）
 		// 3.1 获取退费相关信息
@@ -844,21 +877,62 @@ func (s *ApprovalFlowService) processRefundApproval(refundOrderID int, orderID i
 
 // processRefundRejection 处理退费审批驳回
 func (s *ApprovalFlowService) processRefundRejection(refundOrderID int, orderID int) error {
+	fmt.Printf("[DEBUG] processRefundRejection调用: refundOrderID=%d, orderID=%d\n", refundOrderID, orderID)
+
 	return s.db.Transaction(func(tx *gorm.DB) error {
+		fmt.Println("[DEBUG] 开始驳回事务处理")
+
 		// 1. 更新退费订单状态为已驳回(20)
-		if err := tx.Table("refund_order").
+		result := tx.Table("refund_order").
 			Where("id = ?", refundOrderID).
-			Update("status", 20).Error; err != nil {
-			return err
+			Update("status", 20)
+		if result.Error != nil {
+			fmt.Printf("[ERROR] 更新退费订单状态失败: %v\n", result.Error)
+			return result.Error
 		}
+		fmt.Printf("[DEBUG] 更新退费订单状态为已驳回，影响行数: %d\n", result.RowsAffected)
+
+		// 1.1 更新退费子订单状态为已驳回(20)
+		result = tx.Table("refund_order_item").
+			Where("refund_order_id = ?", refundOrderID).
+			Update("status", 20)
+		if result.Error != nil {
+			fmt.Printf("[ERROR] 更新退费子订单状态失败: %v\n", result.Error)
+			return result.Error
+		}
+		fmt.Printf("[DEBUG] 更新退费子订单状态为已驳回，影响行数: %d\n", result.RowsAffected)
+
+		// 1.2 更新淘宝退费补充信息状态为已驳回(20)
+		result = tx.Table("refund_taobao_supplement").
+			Where("refund_order_id = ?", refundOrderID).
+			Update("status", 20)
+		if result.Error != nil {
+			fmt.Printf("[ERROR] 更新淘宝退费补充信息状态失败: %v\n", result.Error)
+			return result.Error
+		}
+		fmt.Printf("[DEBUG] 更新淘宝退费补充信息状态为已驳回，影响行数: %d\n", result.RowsAffected)
+
+		// 1.3 更新常规退费补充信息状态为已驳回(20)
+		result = tx.Table("refund_regular_supplement").
+			Where("refund_order_id = ?", refundOrderID).
+			Update("status", 20)
+		if result.Error != nil {
+			fmt.Printf("[ERROR] 更新常规退费补充信息状态失败: %v\n", result.Error)
+			return result.Error
+		}
+		fmt.Printf("[DEBUG] 更新常规退费补充信息状态为已驳回，影响行数: %d\n", result.RowsAffected)
 
 		// 2. 恢复订单状态为部分支付(30)
-		if err := tx.Table("orders").
+		result = tx.Table("orders").
 			Where("id = ?", orderID).
-			Update("status", 30).Error; err != nil {
-			return err
+			Update("status", 30)
+		if result.Error != nil {
+			fmt.Printf("[ERROR] 恢复订单状态失败: %v\n", result.Error)
+			return result.Error
 		}
+		fmt.Printf("[DEBUG] 恢复订单状态为部分支付，影响行数: %d\n", result.RowsAffected)
 
+		fmt.Println("[DEBUG] processRefundRejection 完成")
 		return nil
 	})
 }

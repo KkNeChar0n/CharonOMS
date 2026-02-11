@@ -57,3 +57,8 @@ simple_*.ps1
 
 # Keep useful scripts in scripts/ directory
 !scripts/*.ps1
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3

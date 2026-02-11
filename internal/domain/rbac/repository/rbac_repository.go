@@ -18,7 +18,7 @@ type RoleRepository interface {
 	// GetByID 根据ID获取角色
 	GetByID(ctx context.Context, id uint) (*entity.Role, error)
 	// List 获取角色列表
-	List(ctx context.Context) ([]*entity.Role, error)
+	List(ctx context.Context, filters map[string]interface{}) ([]*entity.Role, error)
 	// GetRolePermissions 获取角色的权限列表
 	GetRolePermissions(ctx context.Context, roleID uint) ([]*entity.Permission, error)
 	// UpdateRolePermissions 更新角色权限
@@ -28,7 +28,7 @@ type RoleRepository interface {
 // PermissionRepository 权限仓储接口
 type PermissionRepository interface {
 	// List 获取权限列表
-	List(ctx context.Context) ([]*entity.Permission, error)
+	List(ctx context.Context, filters map[string]interface{}) ([]*entity.Permission, error)
 	// ListByStatus 根据状态获取权限列表
 	ListByStatus(ctx context.Context, status int8) ([]*entity.Permission, error)
 	// GetByID 根据ID获取权限
@@ -42,7 +42,7 @@ type PermissionRepository interface {
 // MenuRepository 菜单仓储接口
 type MenuRepository interface {
 	// List 获取菜单列表
-	List(ctx context.Context) ([]*entity.Menu, error)
+	List(ctx context.Context, filters map[string]interface{}) ([]*entity.Menu, error)
 	// GetByID 根据ID获取菜单
 	GetByID(ctx context.Context, id uint) (*entity.Menu, error)
 	// Update 更新菜单

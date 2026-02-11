@@ -1935,7 +1935,7 @@
                                     </div>
 
                                     <!-- 筛选条件 -->
-                                    <div class="filter-section">
+                                    <div class="filter-form">
                                         <div class="filter-row">
                                             <div class="filter-item">
                                                 <label for="taobaoIdFilter">ID</label>
@@ -1963,7 +1963,7 @@
                                                 </select>
                                             </div>
                                         </div>
-                                        <div class="filter-buttons">
+                                        <div class="filter-actions">
                                             <button class="search-btn" @click="searchTaobaoPayments">搜索</button>
                                             <button class="reset-btn" @click="resetTaobaoPaymentFilters">重置</button>
                                         </div>
@@ -2039,7 +2039,7 @@
                                     </div>
 
                                     <!-- 筛选条件 -->
-                                    <div class="filter-section">
+                                    <div class="filter-form">
                                         <div class="filter-row">
                                             <div class="filter-item">
                                                 <label for="taobaoUnclaimedIdFilter">ID</label>
@@ -2058,7 +2058,7 @@
                                                 </select>
                                             </div>
                                         </div>
-                                        <div class="filter-buttons">
+                                        <div class="filter-actions">
                                             <button class="search-btn" @click="searchTaobaoUnclaimed">搜索</button>
                                             <button class="reset-btn" @click="resetTaobaoUnclaimedFilters">重置</button>
                                         </div>
@@ -2102,9 +2102,9 @@
 
                                     <!-- 分页 -->
                                     <div class="pagination" v-if="totalTaobaoUnclaimedPages > 1">
-                                        <button @click="changeTaobaoUnclaimedPage(taobaoUnclaimedCurrentPage - 1)" :disabled="taobaoUnclaimedCurrentPage === 1">上一页</button>
+                                        <button class="page-btn" @click="changeTaobaoUnclaimedPage(taobaoUnclaimedCurrentPage - 1)" :disabled="taobaoUnclaimedCurrentPage === 1">上一页</button>
                                         <span>第 {{ taobaoUnclaimedCurrentPage }} / {{ totalTaobaoUnclaimedPages }} 页</span>
-                                        <button @click="changeTaobaoUnclaimedPage(taobaoUnclaimedCurrentPage + 1)" :disabled="taobaoUnclaimedCurrentPage === totalTaobaoUnclaimedPages">下一页</button>
+                                        <button class="page-btn" @click="changeTaobaoUnclaimedPage(taobaoUnclaimedCurrentPage + 1)" :disabled="taobaoUnclaimedCurrentPage === totalTaobaoUnclaimedPages">下一页</button>
                                     </div>
                                 </div>
                             </div>

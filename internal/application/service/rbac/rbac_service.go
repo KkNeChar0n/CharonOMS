@@ -84,8 +84,8 @@ func (s *RBACService) UpdateRoleStatus(ctx context.Context, id uint, status int8
 }
 
 // GetRoleList 获取角色列表
-func (s *RBACService) GetRoleList(ctx context.Context) ([]*entity.Role, error) {
-	return s.roleRepo.List(ctx)
+func (s *RBACService) GetRoleList(ctx context.Context, filters map[string]interface{}) ([]*entity.Role, error) {
+	return s.roleRepo.List(ctx, filters)
 }
 
 // GetRoleByID 根据ID获取角色
@@ -103,8 +103,8 @@ func (s *RBACService) GetRoleByID(ctx context.Context, id uint) (*entity.Role, e
 // ===== 权限管理 =====
 
 // GetPermissionList 获取权限列表
-func (s *RBACService) GetPermissionList(ctx context.Context) ([]*entity.Permission, error) {
-	return s.permissionRepo.List(ctx)
+func (s *RBACService) GetPermissionList(ctx context.Context, filters map[string]interface{}) ([]*entity.Permission, error) {
+	return s.permissionRepo.List(ctx, filters)
 }
 
 // UpdatePermissionStatus 更新权限状态
@@ -149,8 +149,8 @@ func (s *RBACService) UpdateRolePermissions(ctx context.Context, roleID uint, re
 // ===== 菜单管理 =====
 
 // GetMenuList 获取菜单列表
-func (s *RBACService) GetMenuList(ctx context.Context) ([]*entity.Menu, error) {
-	return s.menuRepo.List(ctx)
+func (s *RBACService) GetMenuList(ctx context.Context, filters map[string]interface{}) ([]*entity.Menu, error) {
+	return s.menuRepo.List(ctx, filters)
 }
 
 // UpdateMenuRequest 更新菜单请求
@@ -176,7 +176,7 @@ func (s *RBACService) UpdateMenu(ctx context.Context, id uint, req *UpdateMenuRe
 	}
 
 	// 校验同级菜单sort_order唯一性
-	allMenus, err := s.menuRepo.List(ctx)
+	allMenus, err := s.menuRepo.List(ctx, make(map[string]interface{}))
 	if err != nil {
 		return err
 	}

@@ -2,7 +2,6 @@ package rbac
 
 import (
 	"charonoms/internal/application/service/rbac"
-	"charonoms/internal/domain/rbac/entity"
 	"charonoms/internal/interfaces/http/middleware"
 	"charonoms/pkg/errors"
 	"net/http"
@@ -27,37 +26,25 @@ func NewRBACHandler(rbacService *rbac.RBACService) *RBACHandler {
 
 // GetRoles 获取角色列表（支持按状态过滤）
 func (h *RBACHandler) GetRoles(c *gin.Context) {
-	roles, err := h.rbacService.GetRoleList(c.Request.Context())
+	// 解析查询参数
+	filters := make(map[string]interface{})
+	if id := c.Query("id"); id != "" {
+		filters["id"] = id
+	}
+	if name := c.Query("name"); name != "" {
+		filters["name"] = name
+	}
+	if status := c.Query("status"); status != "" {
+		filters["status"] = status
+	}
+
+	roles, err := h.rbacService.GetRoleList(c.Request.Context(), filters)
 	if err != nil {
 		if appErr, ok := err.(*errors.AppError); ok {
 			c.JSON(appErr.Code, gin.H{"error": appErr.Message})
 		} else {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		}
-		return
-	}
-
-	// 支持按状态过滤
-	statusParam := c.Query("status")
-	if statusParam != "" {
-		var status int8
-		if statusParam == "0" {
-			status = 0
-		} else if statusParam == "1" {
-			status = 1
-		} else {
-			c.JSON(http.StatusOK, gin.H{"roles": roles})
-			return
-		}
-
-		// 过滤角色
-		filteredRoles := make([]*entity.Role, 0)
-		for _, role := range roles {
-			if role.Status == status {
-				filteredRoles = append(filteredRoles, role)
-			}
-		}
-		c.JSON(http.StatusOK, gin.H{"roles": filteredRoles})
 		return
 	}
 
@@ -150,7 +137,16 @@ func (h *RBACHandler) UpdateRoleStatus(c *gin.Context) {
 
 // GetPermissions 获取权限列表
 func (h *RBACHandler) GetPermissions(c *gin.Context) {
-	permissions, err := h.rbacService.GetPermissionList(c.Request.Context())
+	// 解析查询参数
+	filters := make(map[string]interface{})
+	if id := c.Query("id"); id != "" {
+		filters["id"] = id
+	}
+	if menuID := c.Query("menu_id"); menuID != "" {
+		filters["menu_id"] = menuID
+	}
+
+	permissions, err := h.rbacService.GetPermissionList(c.Request.Context(), filters)
 	if err != nil {
 		if appErr, ok := err.(*errors.AppError); ok {
 			c.JSON(appErr.Code, gin.H{"error": appErr.Message})
@@ -274,7 +270,19 @@ func (h *RBACHandler) UpdateRolePermissions(c *gin.Context) {
 
 // GetMenus 获取菜单列表（管理用）
 func (h *RBACHandler) GetMenus(c *gin.Context) {
-	menus, err := h.rbacService.GetMenuList(c.Request.Context())
+	// 解析查询参数
+	filters := make(map[string]interface{})
+	if id := c.Query("id"); id != "" {
+		filters["id"] = id
+	}
+	if name := c.Query("name"); name != "" {
+		filters["name"] = name
+	}
+	if status := c.Query("status"); status != "" {
+		filters["status"] = status
+	}
+
+	menus, err := h.rbacService.GetMenuList(c.Request.Context(), filters)
 	if err != nil {
 		if appErr, ok := err.(*errors.AppError); ok {
 			c.JSON(appErr.Code, gin.H{"error": appErr.Message})
@@ -287,8 +295,36 @@ func (h *RBACHandler) GetMenus(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"menus": menus})
 }
 
-// GetMenu 获取用户的菜单树（前端导航用）
+// GetMenu 获取用户的菜单树（前端导航用）或二级菜单列表（用于筛选）
 func (h *RBACHandler) GetMenu(c *gin.Context) {
+	// 检查是否请求二级菜单列表（用于筛选下拉框）
+	if level := c.Query("level"); level == "2" {
+		menus, err := h.rbacService.GetMenuList(c.Request.Context(), make(map[string]interface{}))
+		if err != nil {
+			if appErr, ok := err.(*errors.AppError); ok {
+				c.JSON(appErr.Code, gin.H{"error": appErr.Message})
+			} else {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			}
+			return
+		}
+
+		// 过滤出二级菜单（有parent_id的菜单）
+		secondLevelMenus := make([]map[string]interface{}, 0)
+		for _, menu := range menus {
+			if menu.ParentID != nil && *menu.ParentID != 0 {
+				secondLevelMenus = append(secondLevelMenus, map[string]interface{}{
+					"id":   menu.ID,
+					"name": menu.Name,
+				})
+			}
+		}
+
+		c.JSON(http.StatusOK, gin.H{"menus": secondLevelMenus})
+		return
+	}
+
+	// 返回菜单树（用于导航）
 	roleID := middleware.GetRoleID(c)
 	isSuperAdmin := middleware.IsSuperAdmin(c)
 

@@ -41,6 +41,9 @@ func (r *GormApprovalFlowManagementRepository) GetInitiatedFlows(userID int, fil
 		Where("fm.create_user = ?", userID)
 
 	// 应用筛选条件
+	if id, ok := filters["id"]; ok && id != "" {
+		query = query.Where("fm.id = ?", id)
+	}
 	if flowTypeID, ok := filters["approval_flow_type_id"]; ok && flowTypeID != "" {
 		query = query.Where("fm.approval_flow_type_id = ?", flowTypeID)
 	}
@@ -64,7 +67,8 @@ func (r *GormApprovalFlowManagementRepository) GetPendingFlows(userID int, filte
 
 	query := r.db.Table("approval_node_case_user ncu").
 		Select(`
-			fm.id as flow_id,
+			ncu.id as id,
+			fm.id as approval_flow_management_id,
 			fm.approval_flow_template_id,
 			fm.approval_flow_type_id,
 			fm.step,
@@ -72,8 +76,9 @@ func (r *GormApprovalFlowManagementRepository) GetPendingFlows(userID int, filte
 			fm.create_time,
 			fm.status,
 			ft.name as template_name,
-			ftype.name as flow_type_name,
+			ftype.name as approval_flow_type_name,
 			nc.id as node_case_id,
+			nc.type as node_type,
 			nc.sort as node_sort,
 			ncu.id as user_case_id,
 			ncu.create_time as assigned_time
@@ -86,6 +91,12 @@ func (r *GormApprovalFlowManagementRepository) GetPendingFlows(userID int, filte
 		Where("ncu.result IS NULL") // 待审批
 
 	// 应用筛选条件
+	if id, ok := filters["id"]; ok && id != "" {
+		query = query.Where("ncu.id = ?", id)
+	}
+	if approvalFlowID, ok := filters["approval_flow_id"]; ok && approvalFlowID != "" {
+		query = query.Where("fm.id = ?", approvalFlowID)
+	}
 	if flowTypeID, ok := filters["approval_flow_type_id"]; ok && flowTypeID != "" {
 		query = query.Where("fm.approval_flow_type_id = ?", flowTypeID)
 	}
@@ -106,7 +117,8 @@ func (r *GormApprovalFlowManagementRepository) GetCompletedFlows(userID int, fil
 
 	query := r.db.Table("approval_node_case_user ncu").
 		Select(`
-			fm.id as flow_id,
+			ncu.id as id,
+			fm.id as approval_flow_management_id,
 			fm.approval_flow_template_id,
 			fm.approval_flow_type_id,
 			fm.step,
@@ -114,11 +126,12 @@ func (r *GormApprovalFlowManagementRepository) GetCompletedFlows(userID int, fil
 			fm.create_time,
 			fm.status,
 			ft.name as template_name,
-			ftype.name as flow_type_name,
+			ftype.name as approval_flow_type_name,
 			nc.id as node_case_id,
+			nc.type as node_type,
 			nc.sort as node_sort,
 			ncu.id as user_case_id,
-			ncu.result as user_result,
+			ncu.result as result,
 			ncu.handle_time
 		`).
 		Joins("INNER JOIN approval_node_case nc ON ncu.approval_node_case_id = nc.id").
@@ -129,6 +142,12 @@ func (r *GormApprovalFlowManagementRepository) GetCompletedFlows(userID int, fil
 		Where("ncu.result IS NOT NULL") // 已处理
 
 	// 应用筛选条件
+	if id, ok := filters["id"]; ok && id != "" {
+		query = query.Where("ncu.id = ?", id)
+	}
+	if approvalFlowID, ok := filters["approval_flow_id"]; ok && approvalFlowID != "" {
+		query = query.Where("fm.id = ?", approvalFlowID)
+	}
 	if flowTypeID, ok := filters["approval_flow_type_id"]; ok && flowTypeID != "" {
 		query = query.Where("fm.approval_flow_type_id = ?", flowTypeID)
 	}
@@ -152,19 +171,19 @@ func (r *GormApprovalFlowManagementRepository) GetCopiedFlows(userID int, filter
 
 	query := r.db.Table("approval_copy_useraccount_case cuc").
 		Select(`
-			fm.id as flow_id,
+			cuc.id as id,
+			fm.id as approval_flow_id,
 			fm.approval_flow_template_id,
 			fm.approval_flow_type_id,
 			fm.step,
 			fm.create_user,
-			fm.create_time,
 			fm.status,
 			fm.complete_time,
 			ft.name as template_name,
-			ftype.name as flow_type_name,
+			ftype.name as approval_flow_type_name,
 			cuc.id as copy_case_id,
 			cuc.copy_info,
-			cuc.create_time as copy_time
+			cuc.create_time as create_time
 		`).
 		Joins("INNER JOIN approval_flow_management fm ON cuc.approval_flow_management_id = fm.id").
 		Joins("LEFT JOIN approval_flow_template ft ON fm.approval_flow_template_id = ft.id").
@@ -172,6 +191,12 @@ func (r *GormApprovalFlowManagementRepository) GetCopiedFlows(userID int, filter
 		Where("cuc.useraccount_id = ?", userID)
 
 	// 应用筛选条件
+	if id, ok := filters["id"]; ok && id != "" {
+		query = query.Where("cuc.id = ?", id)
+	}
+	if approvalFlowID, ok := filters["approval_flow_id"]; ok && approvalFlowID != "" {
+		query = query.Where("fm.id = ?", approvalFlowID)
+	}
 	if flowTypeID, ok := filters["approval_flow_type_id"]; ok && flowTypeID != "" {
 		query = query.Where("fm.approval_flow_type_id = ?", flowTypeID)
 	}
@@ -197,14 +222,15 @@ func (r *GormApprovalFlowManagementRepository) GetDetailByID(flowID int, userID 
 		Select(`
 			fm.*,
 			ft.name as template_name,
-			ftype.name as flow_type_name,
-			ua.username as create_user_name
+			ftype.name as approval_flow_type_name,
+			ua.username as creator_name
 		`).
 		Joins("LEFT JOIN approval_flow_template ft ON fm.approval_flow_template_id = ft.id").
 		Joins("LEFT JOIN approval_flow_type ftype ON fm.approval_flow_type_id = ftype.id").
 		Joins("LEFT JOIN useraccount ua ON fm.create_user = ua.id").
 		Where("fm.id = ?", flowID).
-		First(&flowInfo).Error
+		Limit(1).
+		Find(&flowInfo).Error
 	if err != nil {
 		return nil, err
 	}
@@ -213,12 +239,12 @@ func (r *GormApprovalFlowManagementRepository) GetDetailByID(flowID int, userID 
 	var nodes []map[string]interface{}
 	err = r.db.Table("approval_node_case nc").
 		Select(`
-			nc.id,
-			nc.node_id,
+			nc.id as node_case_id,
+			nc.node_id as template_node_id,
 			nc.approval_flow_management_id,
 			nc.type,
 			nc.sort,
-			nc.result,
+			nc.result as node_result,
 			nc.create_time,
 			nc.complete_time,
 			tn.name as node_name
@@ -233,7 +259,23 @@ func (r *GormApprovalFlowManagementRepository) GetDetailByID(flowID int, userID 
 
 	// 3. 为每个节点获取审批人员记录
 	for i := range nodes {
-		nodeCaseID := int(nodes[i]["id"].(int64))
+		// 安全地获取节点ID，处理int32和int64两种情况
+		var nodeCaseID int
+		switch v := nodes[i]["node_case_id"].(type) {
+		case int:
+			nodeCaseID = v
+		case int32:
+			nodeCaseID = int(v)
+		case int64:
+			nodeCaseID = int(v)
+		case uint:
+			nodeCaseID = int(v)
+		case uint32:
+			nodeCaseID = int(v)
+		case uint64:
+			nodeCaseID = int(v)
+		}
+
 		var users []map[string]interface{}
 		err = r.db.Table("approval_node_case_user ncu").
 			Select(`
@@ -272,7 +314,119 @@ func (r *GormApprovalFlowManagementRepository) GetDetailByID(flowID int, userID 
 		return nil, err
 	}
 
-	// 5. 检查当前用户的权限信息
+	// 5. 获取当前用户的审批记录
+	var userApproval map[string]interface{}
+	err = r.db.Table("approval_node_case_user ncu").
+		Select(`
+			ncu.id,
+			ncu.approval_node_case_id,
+			nc.approval_flow_management_id,
+			nc.type as node_type,
+			nc.sort as node_sort,
+			ncu.result,
+			ncu.create_time,
+			ncu.handle_time
+		`).
+		Joins("INNER JOIN approval_node_case nc ON ncu.approval_node_case_id = nc.id").
+		Where("nc.approval_flow_management_id = ?", flowID).
+		Where("ncu.useraccount_id = ?", userID).
+		Order("nc.sort ASC").
+		Limit(1).
+		Find(&userApproval).Error
+	if err != nil {
+		userApproval = nil // 如果没有审批记录，设为nil
+	}
+
+	// 6. 如果是退费类型，获取退费信息
+	var refundOrderInfo map[string]interface{}
+	flowTypeName, _ := flowInfo["approval_flow_type_name"].(string)
+	if flowTypeName == "退费" {
+		// 通过审批流ID关联退费订单
+		var refundOrder map[string]interface{}
+		err = r.db.Table("refund_order ro").
+			Select(`
+				ro.id as refund_order_id,
+				ro.order_id,
+				ro.refund_amount,
+				ro.submitter,
+				ro.submit_time,
+				ro.status,
+				s.name as student_name,
+				s.phone as student_phone,
+				g.name as grade_name
+			`).
+			Joins("LEFT JOIN student s ON ro.student_id = s.id").
+			Joins("LEFT JOIN grade g ON s.grade_id = g.id").
+			Where("ro.id = (SELECT MAX(id) FROM refund_order WHERE create_time >= (SELECT create_time FROM approval_flow_management WHERE id = ?))", flowID).
+			Limit(1).
+			Find(&refundOrder).Error
+
+		if err == nil && len(refundOrder) > 0 {
+			var refundOrderID int
+			switch v := refundOrder["refund_order_id"].(type) {
+			case int:
+				refundOrderID = v
+			case int32:
+				refundOrderID = int(v)
+			case int64:
+				refundOrderID = int(v)
+			}
+
+			// 获取退费明细
+			var items []map[string]interface{}
+			r.db.Table("refund_order_item").
+				Select("goods_name, refund_amount").
+				Where("refund_order_id = ?", refundOrderID).
+				Find(&items)
+			refundOrder["items"] = items
+
+			// 获取退费收款分配
+			var payments []map[string]interface{}
+			r.db.Raw(`
+				SELECT
+					rp.payment_id,
+					rp.payment_type,
+					rp.refund_amount,
+					CASE
+						WHEN rp.payment_type = 0 THEN pc.payment_amount
+						WHEN rp.payment_type = 1 THEN tp.payment_amount
+					END as payment_amount,
+					CASE
+						WHEN rp.payment_type = 0 THEN
+							CASE pc.payee_entity
+								WHEN 0 THEN '北京'
+								WHEN 1 THEN '西安'
+								ELSE ''
+							END
+						ELSE ''
+					END as payee_entity
+				FROM refund_payment rp
+				LEFT JOIN payment_collection pc ON rp.payment_id = pc.id AND rp.payment_type = 0
+				LEFT JOIN taobao_payment tp ON rp.payment_id = tp.id AND rp.payment_type = 1
+				WHERE rp.refund_order_id = ?
+			`, refundOrderID).Scan(&payments)
+			refundOrder["payments"] = payments
+
+			// 获取淘宝补充信息
+			var taobaoSupplement map[string]interface{}
+			r.db.Table("refund_taobao_supplement").
+				Where("refund_order_id = ?", refundOrderID).
+				Limit(1).
+				Find(&taobaoSupplement)
+			refundOrder["taobao_supplement"] = taobaoSupplement
+
+			// 获取常规补充信息
+			var regularSupplements []map[string]interface{}
+			r.db.Table("refund_regular_supplement").
+				Where("refund_order_id = ?", refundOrderID).
+				Find(&regularSupplements)
+			refundOrder["regular_supplements"] = regularSupplements
+
+			refundOrderInfo = refundOrder
+		}
+	}
+
+	// 7. 检查当前用户的权限信息
 	canApprove := false
 	canCancel := false
 
@@ -292,16 +446,20 @@ func (r *GormApprovalFlowManagementRepository) GetDetailByID(flowID int, userID 
 	if status, ok := flowInfo["status"].(int8); ok && status == 0 {
 		if createUser, ok := flowInfo["create_user"].(int64); ok && int(createUser) == userID {
 			canCancel = true
+		} else if createUser, ok := flowInfo["create_user"].(int32); ok && int(createUser) == userID {
+			canCancel = true
 		}
 	}
 
 	// 组装结果
 	result := map[string]interface{}{
-		"flow":         flowInfo,
-		"nodes":        nodes,
-		"copy_records": copyRecords,
-		"can_approve":  canApprove,
-		"can_cancel":   canCancel,
+		"flow_info":         flowInfo,
+		"user_approval":     userApproval,
+		"all_nodes":         nodes,
+		"refund_order_info": refundOrderInfo,
+		"copy_records":      copyRecords,
+		"can_approve":       canApprove,
+		"can_cancel":        canCancel,
 	}
 
 	return result, nil

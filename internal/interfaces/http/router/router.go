@@ -18,6 +18,9 @@ import (
 	approvalService "charonoms/internal/application/service/approval"
 	paymentAppService "charonoms/internal/application/financial/payment"
 	separateAppService "charonoms/internal/application/financial/separate"
+	taobaoAppService "charonoms/internal/application/financial/taobao"
+	unclaimedAppService "charonoms/internal/application/financial/unclaimed"
+	refundAppService "charonoms/internal/application/financial/refund"
 	"charonoms/internal/infrastructure/config"
 	"charonoms/internal/infrastructure/persistence"
 	financialImpl "charonoms/internal/infrastructure/persistence/financial"
@@ -141,11 +144,12 @@ func setupDependencies(r *gin.Engine, cfg *config.Config) {
 	// Financial repositories (need to initialize before order module)
 	paymentRepo := financialImpl.NewPaymentRepository(mysql.DB)
 	separateRepo := financialImpl.NewSeparateAccountRepository(mysql.DB)
+	taobaoRepo := financialImpl.NewTaobaoPaymentRepository(mysql.DB)
 
 	// Order module
 	orderRepo := orderImpl.NewOrderRepository(mysql.DB)
 	childOrderRepo := orderImpl.NewChildOrderRepository(mysql.DB)
-	orderSvc := orderService.NewService(orderRepo, childOrderRepo, goodsRepo, paymentRepo, mysql.DB)
+	orderSvc := orderService.NewService(orderRepo, childOrderRepo, goodsRepo, paymentRepo, taobaoRepo, mysql.DB)
 	orderHdl := handler.NewOrderHandler(orderSvc)
 
 	// Activity Template module
@@ -163,7 +167,7 @@ func setupDependencies(r *gin.Engine, cfg *config.Config) {
 	approvalTemplateRepo := approvalImpl.NewApprovalFlowTemplateRepository(mysql.DB)
 	approvalMgmtRepo := approvalImpl.NewApprovalFlowManagementRepository(mysql.DB)
 	approvalNodeRepo := approvalImpl.NewApprovalNodeCaseRepository(mysql.DB)
-	approvalDomainSvc := approvalDomainService.NewApprovalFlowService(approvalMgmtRepo, approvalNodeRepo, approvalTemplateRepo)
+	approvalDomainSvc := approvalDomainService.NewApprovalFlowService(approvalMgmtRepo, approvalNodeRepo, approvalTemplateRepo, mysql.DB)
 	approvalTypeSvc := approvalService.NewApprovalFlowTypeService(approvalTypeRepo)
 	approvalTemplateSvc := approvalService.NewApprovalFlowTemplateService(approvalTemplateRepo, approvalTypeRepo)
 	approvalMgmtSvc := approvalService.NewApprovalFlowManagementService(approvalMgmtRepo, approvalNodeRepo, approvalDomainSvc)
@@ -176,6 +180,27 @@ func setupDependencies(r *gin.Engine, cfg *config.Config) {
 	separateAppSvc := separateAppService.NewSeparateAccountApplicationService(separateRepo)
 	paymentHdl := financialHandler.NewPaymentHandler(paymentAppSvc)
 	separateHdl := financialHandler.NewSeparateAccountHandler(separateAppSvc)
+
+	// Taobao Payment module
+	taobaoAppSvc := taobaoAppService.NewTaobaoPaymentService(mysql.DB, taobaoRepo, paymentRepo, orderRepo, childOrderRepo, separateRepo)
+	taobaoHdl := financialHandler.NewTaobaoHandler(taobaoAppSvc)
+
+	// Unclaimed Payment module
+	unclaimedRepo := financialImpl.NewUnclaimedRepository(mysql.DB)
+	unclaimedAppSvc := unclaimedAppService.NewUnclaimedService(mysql.DB, unclaimedRepo, paymentRepo, orderRepo, separateDomainSvc)
+	unclaimedHdl := financialHandler.NewUnclaimedHandler(unclaimedAppSvc)
+
+	// Refund Order module
+	refundRepo := financialImpl.NewRefundRepository(mysql.DB)
+	refundAppSvc := refundAppService.NewRefundService(
+		refundRepo,
+		orderRepo,
+		approvalTemplateRepo,
+		approvalMgmtRepo,
+		approvalNodeRepo,
+		mysql.DB,
+	)
+	refundHdl := financialHandler.NewRefundHandler(refundAppSvc)
 
 	// Placeholder handler for unimplemented features
 	placeholderHdl := placeholder.NewPlaceholderHandler()
@@ -279,6 +304,8 @@ func setupDependencies(r *gin.Engine, cfg *config.Config) {
 				orders.POST("", orderHdl.CreateOrder)
 				orders.GET("/:id/goods", orderHdl.GetOrderGoods)
 				orders.GET("/:id/pending-amount", orderHdl.GetOrderPendingAmount)
+				orders.GET("/:id/refund-info", orderHdl.GetOrderRefundInfo)
+				orders.POST("/:id/refund-payments", orderHdl.GetRefundPayments)
 				orders.PUT("/:id", orderHdl.UpdateOrder)
 				orders.PUT("/:id/submit", orderHdl.SubmitOrder)
 				orders.PUT("/:id/cancel", orderHdl.CancelOrder)
@@ -288,9 +315,14 @@ func setupDependencies(r *gin.Engine, cfg *config.Config) {
 			// Child Order Management
 			authorized.GET("/childorders", orderHdl.GetChildOrders)
 
-			// Refund Management - Placeholder routes (to be implemented)
-			authorized.GET("/refund_orders", placeholderHdl.HandlePlaceholder)
-			authorized.GET("/refund_childorders", placeholderHdl.HandlePlaceholder)
+			// Refund Management
+			authorized.GET("/refund-orders", refundHdl.GetRefundOrders)
+			authorized.POST("/refund-orders", refundHdl.CreateRefundOrder)
+			authorized.GET("/refund-orders/:id", refundHdl.GetRefundOrderDetail)
+			authorized.GET("/refund-childorders", refundHdl.GetRefundChildOrders)
+			authorized.GET("/refund-regular-supplements", refundHdl.GetRefundRegularSupplements)
+			authorized.GET("/refund-taobao-supplements", refundHdl.GetRefundTaobaoSupplements)
+			authorized.GET("/refund-payment-details", refundHdl.GetRefundPaymentDetails)
 
 			// Brand Management
 			brands := authorized.Group("/brands")
@@ -431,6 +463,35 @@ func setupDependencies(r *gin.Engine, cfg *config.Config) {
 			separateAccounts := authorized.Group("/separate-accounts")
 			{
 				separateAccounts.GET("", separateHdl.GetSeparateAccounts)
+			}
+
+			// Taobao Payment Management
+			taobaoPayments := authorized.Group("/taobao-payments")
+			{
+				taobaoPayments.GET("", taobaoHdl.GetPaidList)
+				taobaoPayments.POST("", taobaoHdl.CreateTaobaoPayment)
+				taobaoPayments.PUT("/:id/confirm", taobaoHdl.ConfirmArrival)
+				taobaoPayments.DELETE("/:id", taobaoHdl.DeleteTaobaoPayment)
+			}
+
+			// Taobao Unclaimed Management
+			taobaoUnclaimed := authorized.Group("/taobao-unclaimed")
+			{
+				taobaoUnclaimed.GET("", taobaoHdl.GetUnclaimedList)
+				taobaoUnclaimed.PUT("/:id/claim", taobaoHdl.ClaimTaobaoPayment)
+				taobaoUnclaimed.DELETE("/:id", taobaoHdl.DeleteUnclaimed)
+				taobaoUnclaimed.GET("/template", taobaoHdl.DownloadUnclaimedTemplate)
+				taobaoUnclaimed.POST("/import", taobaoHdl.ImportUnclaimedExcel)
+			}
+
+			// Regular Unclaimed Payment Management
+			unclaimed := authorized.Group("/unclaimed")
+			{
+				unclaimed.GET("", unclaimedHdl.GetList)
+				unclaimed.PUT("/:id/claim", unclaimedHdl.Claim)
+				unclaimed.DELETE("/:id", unclaimedHdl.Delete)
+				unclaimed.GET("/template", unclaimedHdl.DownloadTemplate)
+				unclaimed.POST("/import", unclaimedHdl.ImportExcel)
 			}
 
 			// Finance Management - Menu placeholders

@@ -4041,12 +4041,13 @@ createApp({
             try {
                 // 调用详情API获取完整信息
                 const response = await axios.get(`/api/approval-flows/${flow.approval_flow_management_id}/detail`, { withCredentials: true });
+                const detailData = response.data.data;
                 this.currentApprovalDetail = {
                     ...flow,
-                    ...response.data.user_approval,
-                    flow_info: response.data.flow_info,
-                    all_nodes: response.data.all_nodes,
-                    refund_order_info: response.data.refund_order_info
+                    ...detailData.user_approval,
+                    flow_info: detailData.flow_info,
+                    all_nodes: detailData.all_nodes,
+                    refund_order_info: detailData.refund_order_info
                 };
                 this.showApprovalDetailDrawer = true;
             } catch (err) {

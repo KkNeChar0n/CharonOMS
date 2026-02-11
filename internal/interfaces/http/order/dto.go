@@ -19,23 +19,32 @@ func (ct *CustomTime) UnmarshalJSON(b []byte) error {
 		return nil
 	}
 
+	// 使用本地时区进行解析，避免UTC转换导致的日期偏移
+	loc := time.Local
+
 	// 尝试多种时间格式
 	formats := []string{
-		"2006-01-02T15:04:05Z07:00",     // RFC3339
-		"2006-01-02T15:04:05.999Z07:00", // RFC3339 with milliseconds
-		"2006-01-02T15:04:05Z",          // ISO8601 with timezone
-		"2006-01-02T15:04:05",           // ISO8601 without timezone
-		"2006-01-02T15:04",              // ISO8601 without seconds (前端使用)
-		"2006-01-02 15:04:05",           // MySQL datetime
-		"2006-01-02 15:04",              // datetime without seconds
-		"2006-01-02",                    // Date only
-		time.RFC3339,
-		time.RFC3339Nano,
+		"2006-01-02T15:04:05Z07:00",     // RFC3339 (带时区，使用UTC)
+		"2006-01-02T15:04:05.999Z07:00", // RFC3339 with milliseconds (带时区，使用UTC)
+		"2006-01-02T15:04:05Z",          // ISO8601 with timezone (带时区，使用UTC)
+		"2006-01-02T15:04:05",           // ISO8601 without timezone (使用本地时区)
+		"2006-01-02T15:04",              // ISO8601 without seconds (前端使用，使用本地时区)
+		"2006-01-02 15:04:05",           // MySQL datetime (使用本地时区)
+		"2006-01-02 15:04",              // datetime without seconds (使用本地时区)
+		"2006-01-02",                    // Date only (使用本地时区)
+		time.RFC3339,                     // RFC3339 (带时区，使用UTC)
+		time.RFC3339Nano,                 // RFC3339Nano (带时区，使用UTC)
 	}
 
 	var err error
-	for _, format := range formats {
-		ct.Time, err = time.Parse(format, s)
+	for i, format := range formats {
+		// 对于带时区的格式（前3个和最后2个），使用time.Parse
+		// 对于不带时区的格式，使用time.ParseInLocation指定本地时区
+		if i < 3 || i >= len(formats)-2 {
+			ct.Time, err = time.Parse(format, s)
+		} else {
+			ct.Time, err = time.ParseInLocation(format, s, loc)
+		}
 		if err == nil {
 			return nil
 		}

@@ -21,12 +21,22 @@ func NewAccountRepository(db *gorm.DB) repository.AccountRepository {
 }
 
 // GetAccountList 获取账号列表
-func (r *accountRepositoryImpl) GetAccountList(ctx context.Context) ([]*entity.UserAccount, error) {
+func (r *accountRepositoryImpl) GetAccountList(ctx context.Context, filters map[string]interface{}) ([]*entity.UserAccount, error) {
 	var accounts []*entity.UserAccount
-	err := r.db.WithContext(ctx).
-		Preload("Role").
-		Order("id DESC").
-		Find(&accounts).Error
+	query := r.db.WithContext(ctx).Preload("Role")
+
+	// 应用筛选条件
+	if id, ok := filters["id"]; ok && id != "" {
+		query = query.Where("id = ?", id)
+	}
+	if phone, ok := filters["phone"]; ok && phone != "" {
+		query = query.Where("phone LIKE ?", "%"+phone.(string)+"%")
+	}
+	if roleID, ok := filters["role_id"]; ok && roleID != "" {
+		query = query.Where("role_id = ?", roleID)
+	}
+
+	err := query.Order("id DESC").Find(&accounts).Error
 	return accounts, err
 }
 

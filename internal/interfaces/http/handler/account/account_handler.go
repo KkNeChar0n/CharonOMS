@@ -27,7 +27,19 @@ func NewAccountHandler(accountService *account.AccountService) *AccountHandler {
 // @Success 200 {object} response.Response
 // @Router /api/accounts [get]
 func (h *AccountHandler) GetAccounts(c *gin.Context) {
-	resp, err := h.accountService.GetAccountList(c.Request.Context())
+	// 解析查询参数
+	filters := make(map[string]interface{})
+	if id := c.Query("id"); id != "" {
+		filters["id"] = id
+	}
+	if phone := c.Query("phone"); phone != "" {
+		filters["phone"] = phone
+	}
+	if roleID := c.Query("role_id"); roleID != "" {
+		filters["role_id"] = roleID
+	}
+
+	resp, err := h.accountService.GetAccountList(c.Request.Context(), filters)
 	if err != nil {
 		response.HandleError(c, err)
 		return

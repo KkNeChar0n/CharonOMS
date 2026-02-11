@@ -40,8 +40,8 @@ type AccountDTO struct {
 }
 
 // GetAccountList 获取账号列表
-func (s *AccountService) GetAccountList(ctx context.Context) (*GetAccountListResponse, error) {
-	accounts, err := s.accountRepo.GetAccountList(ctx)
+func (s *AccountService) GetAccountList(ctx context.Context, filters map[string]interface{}) (*GetAccountListResponse, error) {
+	accounts, err := s.accountRepo.GetAccountList(ctx, filters)
 	if err != nil {
 		return nil, err
 	}

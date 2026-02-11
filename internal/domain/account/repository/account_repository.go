@@ -8,7 +8,7 @@ import (
 // AccountRepository 账号仓储接口
 type AccountRepository interface {
 	// GetAccountList 获取账号列表
-	GetAccountList(ctx context.Context) ([]*entity.UserAccount, error)
+	GetAccountList(ctx context.Context, filters map[string]interface{}) ([]*entity.UserAccount, error)
 
 	// GetAccountByID 根据ID获取账号
 	GetAccountByID(ctx context.Context, id uint) (*entity.UserAccount, error)

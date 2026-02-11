@@ -19,12 +19,22 @@ func NewMenuRepository(db *gorm.DB) repository.MenuRepository {
 }
 
 // List 获取菜单列表
-func (r *MenuRepositoryImpl) List(ctx context.Context) ([]*entity.Menu, error) {
+func (r *MenuRepositoryImpl) List(ctx context.Context, filters map[string]interface{}) ([]*entity.Menu, error) {
 	var menus []*entity.Menu
-	err := r.db.WithContext(ctx).
-		Preload("Parent").
-		Order("sort_order ASC, id ASC").
-		Find(&menus).Error
+	query := r.db.WithContext(ctx).Preload("Parent")
+
+	// 应用筛选条件
+	if id, ok := filters["id"]; ok && id != "" {
+		query = query.Where("id = ?", id)
+	}
+	if name, ok := filters["name"]; ok && name != "" {
+		query = query.Where("name LIKE ?", "%"+name.(string)+"%")
+	}
+	if status, ok := filters["status"]; ok && status != "" {
+		query = query.Where("status = ?", status)
+	}
+
+	err := query.Order("sort_order ASC, id ASC").Find(&menus).Error
 	if err != nil {
 		return nil, err
 	}

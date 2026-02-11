@@ -91,7 +91,15 @@
       "Bash(git commit -m \"$\\(cat <<''EOF''\ndocs: 归档审批流管理模块迁移提案\n\n## 归档原因\n审批流管理模块迁移已100%完成，所有功能测试通过，前端集成完成。\n\n## 归档内容\n- proposal.md - 项目提案\n- design.md - 详细设计文档\n- tasks.md - 任务分解\n- test_plan.md - 测试计划\n- implementation_report.md - 完整实施报告\n- specs/ - 技术规范\n\n## 项目成果\n- 21个新增文件，2700+行Go代码\n- DDD四层架构完整实现\n- 6个关键问题修复\n- 功能测试100%通过\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(cat:*)",
       "Bash(go get:*)",
-      "Bash($env:CGO_ENABLED=1)"
+      "Bash($env:CGO_ENABLED=1)",
+      "Bash(bin/charonoms.exe:*)",
+      "Bash(go mod tidy:*)",
+      "Bash(./cmd/server/server.exe:*)",
+      "Bash(cd:*)",
+      "Bash(sqlite3:*)",
+      "Bash(binserver.exe)",
+      "Bash(./CharonOMS.exe)",
+      "Bash(git pull:*)"
     ]
   }
 }

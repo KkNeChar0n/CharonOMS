@@ -52,9 +52,22 @@ func (r *RoleRepositoryImpl) GetByID(ctx context.Context, id uint) (*entity.Role
 }
 
 // List 获取角色列表
-func (r *RoleRepositoryImpl) List(ctx context.Context) ([]*entity.Role, error) {
+func (r *RoleRepositoryImpl) List(ctx context.Context, filters map[string]interface{}) ([]*entity.Role, error) {
 	var roles []*entity.Role
-	err := r.db.WithContext(ctx).Order("id ASC").Find(&roles).Error
+	query := r.db.WithContext(ctx)
+
+	// 应用筛选条件
+	if id, ok := filters["id"]; ok && id != "" {
+		query = query.Where("id = ?", id)
+	}
+	if name, ok := filters["name"]; ok && name != "" {
+		query = query.Where("name LIKE ?", "%"+name.(string)+"%")
+	}
+	if status, ok := filters["status"]; ok && status != "" {
+		query = query.Where("status = ?", status)
+	}
+
+	err := query.Order("id ASC").Find(&roles).Error
 	return roles, err
 }
 
